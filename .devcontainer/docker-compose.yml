@@ -1,0 +1,16 @@
+services:
+  devcontainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspace:cached
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: sleep infinity
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: tasks
+      SERVICE_C_BASE_URL: http://fetch:8002
+      DATABASE_URL: postgresql://tasksuser:taskspass@postgres:5432/tasksdb
+    networks:
+      - backend
