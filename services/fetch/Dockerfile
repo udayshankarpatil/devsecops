@@ -5,10 +5,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 
 WORKDIR /app
 COPY pyproject.toml .
+RUN mkdir -p src/fetch && pip install --no-cache-dir .
+
 COPY src/ src/
 
 FROM base AS prod
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir --no-deps .
 CMD ["uvicorn", "fetch.main:app", "--host", "0.0.0.0", "--port", "8002"]
 
 FROM base AS dev
