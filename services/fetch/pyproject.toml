@@ -21,8 +21,8 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["src*"]
+where = ["src"]
+include = ["fetch*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

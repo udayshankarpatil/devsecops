@@ -124,7 +124,10 @@ service-name/
 1. Clone the repo and open it in VS Code.
 2. When prompted, click **Reopen in Container** — or run **Dev Containers: Reopen in Container** from the command palette (`⇧⌘P`).
 3. VS Code builds the dev container and starts all infrastructure (Kafka, PostgreSQL) automatically. The `postCreateCommand` installs all Python dependencies — no virtual environment is used.
-4. The following ports are forwarded to your host:
+4. Open the Run and Debug panel (`F5`) and add a launch configuration pointing to the `uvicorn` or `python -m` commands above.
+
+
+The following ports are forwarded to your host:
 
 | Port | Service | Purpose |
 |---|---|---|

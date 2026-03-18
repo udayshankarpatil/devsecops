@@ -1,6 +1,6 @@
 {
   "name": "devsecops",
-  "dockerComposeFile": ["../docker-compose.yml", "docker-compose.yml"],
+  "dockerComposeFile": ["../docker-compose.yml", "../docker-compose.override.yml", "docker-compose.yml"],
   "service": "devcontainer",
   "workspaceFolder": "/workspace/devsecops",
   "remoteUser": "vscode",
@@ -28,7 +28,7 @@
       }
     }
   },
-  "postCreateCommand": "cd services && pip install --no-cache-dir './api[dev]' './ingest[dev]' './fetch[dev]'",
+  "postCreateCommand": "cd services && pip install --no-cache-dir -e './api[dev]' -e './ingest[dev]' -e './fetch[dev]'",
   "remoteEnv": {
     "PATH": "${containerEnv:PATH}:/home/vscode/.local/bin"
   },

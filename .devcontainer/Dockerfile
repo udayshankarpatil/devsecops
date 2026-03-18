@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY services/api/pyproject.toml /tmp/build/api/pyproject.toml
 COPY services/ingest/pyproject.toml /tmp/build/ingest/pyproject.toml
 COPY services/fetch/pyproject.toml /tmp/build/fetch/pyproject.toml
-RUN mkdir -p /tmp/build/api/src /tmp/build/ingest/src /tmp/build/fetch/src \
+RUN mkdir -p /tmp/build/api/src/api /tmp/build/ingest/src/ingest /tmp/build/fetch/src/fetch \
  && pip install --no-cache-dir \
     '/tmp/build/api[dev]' \
     '/tmp/build/ingest[dev]' \

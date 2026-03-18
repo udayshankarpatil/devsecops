@@ -25,7 +25,7 @@ def test_health(client):
 def test_list_tasks(client):
     tc, _ = client
     task = make_task(title="Task 1")
-    with patch("src.db.repository.get_all_tasks", return_value=[task]):
+    with patch("fetch.db.repository.get_all_tasks", return_value=[task]):
         resp = tc.get("/tasks")
     assert resp.status_code == 200
     data = resp.json()
@@ -35,7 +35,7 @@ def test_list_tasks(client):
 
 def test_list_tasks_empty(client):
     tc, _ = client
-    with patch("src.db.repository.get_all_tasks", return_value=[]):
+    with patch("fetch.db.repository.get_all_tasks", return_value=[]):
         resp = tc.get("/tasks")
     assert resp.status_code == 200
     assert resp.json() == []
@@ -45,7 +45,7 @@ def test_get_task(client):
     tc, _ = client
     task_id = uuid4()
     task = make_task(id=task_id, title="My Task")
-    with patch("src.db.repository.get_task_by_id", return_value=task):
+    with patch("fetch.db.repository.get_task_by_id", return_value=task):
         resp = tc.get(f"/tasks/{task_id}")
     assert resp.status_code == 200
     assert resp.json()["title"] == "My Task"
@@ -53,6 +53,6 @@ def test_get_task(client):
 
 def test_get_task_not_found(client):
     tc, _ = client
-    with patch("src.db.repository.get_task_by_id", return_value=None):
+    with patch("fetch.db.repository.get_task_by_id", return_value=None):
         resp = tc.get("/tasks/nonexistent")
     assert resp.status_code == 404

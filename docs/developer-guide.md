@@ -14,14 +14,16 @@ docker compose build api
 
 ## Running the Application
 
-**Full stack:**
-```bash
-docker compose up
-```
 
-**Infrastructure only** (run services locally during development):
 ```bash
+# Full stack
+docker compose up
+
+# Infrastructure only** (run services locally during development):
 docker compose up postgres kafka
+
+# Shutdown
+docker compose down
 ```
 
 **Run a service locally** (from within the dev container or with deps installed):
@@ -29,21 +31,19 @@ docker compose up postgres kafka
 # api
 cd services/api
 SERVICE_C_BASE_URL=http://localhost:8002 KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
-  uvicorn src.main:app --reload --port 8000
+  uvicorn api.main:app --reload --port 8000
 
 # fetch
 cd services/fetch
 DATABASE_URL=postgresql://tasksuser:taskspass@localhost:5432/tasksdb \
-  uvicorn src.main:app --reload --port 8002
+  uvicorn fetch.main:app --reload --port 8002
 
 # ingest
 cd services/ingest
 DATABASE_URL=postgresql://tasksuser:taskspass@localhost:5432/tasksdb \
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
-  python -m src.main
+  python -m ingest.main
 ```
-
-**From VS Code:** Open the Run and Debug panel (`F5`) and add a launch configuration pointing to the `uvicorn` or `python -m` commands above.
 
 ## Running Tests
 

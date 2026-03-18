@@ -1,0 +1,21 @@
+services:
+  api:
+    build:
+      context: ./services/api
+      target: dev
+    volumes:
+      - ./services/api/src:/app/src
+
+  fetch:
+    build:
+      context: ./services/fetch
+      target: dev
+    volumes:
+      - ./services/fetch/src:/app/src
+
+  ingest:
+    build:
+      context: ./services/ingest
+      target: dev
+    volumes:
+      - ./services/ingest/src:/app/src
