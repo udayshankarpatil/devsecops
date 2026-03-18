@@ -20,7 +20,7 @@ flowchart LR
     subgraph Services
         api -.->|Kafka\ntasks topic| ingest
         ingest -->|asyncpg| DB
-    
+
         api -->|HTTP GET| fetch
         fetch -->|asyncpg| DB
     end
@@ -60,12 +60,25 @@ All public endpoints are on **api** at `http://localhost:8000`.
 
 > Write endpoints return `202 Accepted` because the database write is asynchronous (via Kafka). Allow a brief moment before a newly created or updated task appears in read responses.
 
+### Swagger UI
+
+With the stack running, the API is self-documenting via FastAPI's built-in OpenAPI support:
+
+| URL | Description |
+|---|---|
+| http://localhost:8000/docs | Swagger UI — interactive, try requests in the browser |
+| http://localhost:8000/redoc | ReDoc — alternative read-only documentation view |
+| http://localhost:8000/openapi.json | Raw OpenAPI schema (JSON) |
+
+Swagger UI lets you expand any endpoint, view its request/response schema, and execute requests directly — no curl or Postman needed.
+
 ## Project Structure
 
 ```
 devsecops/
 ├── .claude/                  # Claude Code slash commands (/docker-build, /test-all, /logs)
 ├── .devcontainer/            # VS Code Dev Container config and dev image Dockerfile
+├── docs/                     # Extended documentation
 ├── infra/
 │   └── db/
 │       └── init.sql          # PostgreSQL schema (tasks table + updated_at trigger)
@@ -94,7 +107,7 @@ service-name/
 |---|---|
 | Services | Python 3.12, FastAPI, uvicorn |
 | Async DB client | asyncpg |
-| Messaging | Apache Kafka (KRaft mode, Bitnami image) |
+| Messaging | Apache Kafka (KRaft mode) |
 | Database | PostgreSQL 16 |
 | Containerisation | Docker, Docker Compose v2 |
 | Development | VS Code Dev Containers |
@@ -110,107 +123,14 @@ service-name/
 
 1. Clone the repo and open it in VS Code.
 2. When prompted, click **Reopen in Container** — or run **Dev Containers: Reopen in Container** from the command palette (`⇧⌘P`).
-3. VS Code builds the dev container and starts all infrastructure (Kafka, PostgreSQL) automatically. The `postCreateCommand` installs all Python dependencies system-wide — no virtual environment is used.
-4. Ports `8000`, `8002`, `5432`, and `9092` are forwarded to your host.
+3. VS Code builds the dev container and starts all infrastructure (Kafka, PostgreSQL) automatically. The `postCreateCommand` installs all Python dependencies — no virtual environment is used.
+4. The following ports are forwarded to your host:
 
-### Building Docker Images
+| Port | Service | Purpose |
+|---|---|---|
+| 8000 | api | REST API and Swagger UI |
+| 8002 | fetch | Internal read service (also accessible from host) |
+| 5432 | postgres | PostgreSQL database |
+| 9092 | kafka | Kafka broker |
 
-Rebuild after changing a `Dockerfile` or `pyproject.toml`:
-
-```bash
-# Rebuild all services
-docker compose build
-
-# Rebuild a single service
-docker compose build api
-```
-
-### Running the Application
-
-**Full stack:**
-```bash
-docker compose up
-```
-
-**Infrastructure only** (run services locally during development):
-```bash
-docker compose up postgres kafka
-```
-
-**Run a service locally** (from within the dev container or with deps installed):
-```bash
-# api
-cd services/api
-SERVICE_C_BASE_URL=http://localhost:8002 KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
-  uvicorn app.main:app --reload --port 8000
-
-# fetch
-cd services/fetch
-DATABASE_URL=postgresql://tasksuser:taskspass@localhost:5432/tasksdb \
-  uvicorn app.main:app --reload --port 8002
-
-# ingest
-cd services/ingest
-DATABASE_URL=postgresql://tasksuser:taskspass@localhost:5432/tasksdb \
-KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
-  python -m app.main
-```
-
-**From VS Code:** Open the Run and Debug panel (`F5`) and add a launch configuration pointing to the `uvicorn` or `python -m` commands above.
-
-### Running Tests
-
-```bash
-# From the dev container (repo root)
-cd services/api && pytest
-cd services/ingest && pytest
-cd services/fetch && pytest
-```
-
-### Swagger UI
-
-With the stack running, the API is self-documenting via FastAPI's built-in OpenAPI support:
-
-| URL | Description |
-|---|---|
-| http://localhost:8000/docs | Swagger UI — interactive, try requests in the browser |
-| http://localhost:8000/redoc | ReDoc — alternative read-only documentation view |
-| http://localhost:8000/openapi.json | Raw OpenAPI schema (JSON) |
-
-Swagger UI lets you expand any endpoint, view its request/response schema, and execute requests directly — no curl or Postman needed.
-
-### curl examples
-```bash
-# Create a task
-curl -s -X POST http://localhost:8000/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"title": "My first task", "description": "Do the thing", "status": "pending"}' | jq
-
-# List tasks (allow a moment for Service B to write to the DB)
-curl -s http://localhost:8000/tasks | jq
-
-# Get a specific task
-curl -s http://localhost:8000/tasks/<task_id> | jq
-
-# Update a task
-curl -s -X PUT http://localhost:8000/tasks/<task_id> \
-  -H "Content-Type: application/json" \
-  -d '{"status": "done"}' | jq
-
-# Delete a task
-curl -s -X DELETE http://localhost:8000/tasks/<task_id> | jq
-```
-
-### Schema Changes
-
-The database schema lives in `infra/db/init.sql`. PostgreSQL only runs this script when the data volume is first created.
-
-To apply schema changes during development:
-
-1. Edit `infra/db/init.sql`.
-2. Destroy the data volume and restart:
-   ```bash
-   docker compose down -v && docker compose up
-   ```
-
-> **Warning:** `docker compose down -v` deletes all data. Never run this against an environment with data you need to keep.
+For detailed workflows see [docs/developer-guide.md](docs/developer-guide.md).
