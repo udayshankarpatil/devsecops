@@ -17,7 +17,9 @@
         "charliermarsh.ruff",
         "ms-azuretools.vscode-docker",
         "mtxr.sqltools",
-        "mtxr.sqltools-driver-pg"
+        "mtxr.sqltools-driver-pg",
+        "bierner.markdown-mermaid",
+        "tamasfe.even-better-toml"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",

@@ -1,3 +1,9 @@
+# Workspace-root pytest configuration.
+# importlib mode prevents module name collisions when pytest collects tests
+# across all three services from the workspace root (each has a tests/ directory
+# and test files with the same names).
+# asyncio_mode = "auto" is set globally so ingest's async tests run correctly
+# regardless of whether pytest is invoked per-service or from the workspace root.
 [pytest]
 addopts = ["--import-mode=importlib"]
 asyncio_mode = "auto"

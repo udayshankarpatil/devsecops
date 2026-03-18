@@ -88,6 +88,8 @@ devsecops/
 │   └── fetch/                # Retrieval: FastAPI read-only API, asyncpg queries
 ├── CLAUDE.md                 # Project conventions and context for Claude Code
 ├── docker-compose.yml        # Full-stack orchestration (all services + Kafka + PostgreSQL)
+├── docker-compose.override.yml  # Dev overrides: live-reload targets and source volume mounts
+├── pytest.toml               # Workspace-root pytest config for unified test discovery
 └── README.md
 ```
 
@@ -95,10 +97,11 @@ Each service directory shares the same layout:
 
 ```
 service-name/
-├── src/              # Python package (application source)
-├── tests/            # pytest unit tests
-├── Dockerfile        # Container image definition
-└── pyproject.toml    # Project metadata, dependencies, and pytest configuration
+├── src/
+│   └── <service-name>/   # Python package (src layout — package name matches service name)
+├── tests/                # pytest unit tests
+├── Dockerfile            # Multi-stage image: base → prod / base → dev
+└── pyproject.toml        # Project metadata, dependencies, and pytest configuration
 ```
 
 ## Tech Stack
@@ -124,10 +127,7 @@ service-name/
 1. Clone the repo and open it in VS Code.
 2. When prompted, click **Reopen in Container** — or run **Dev Containers: Reopen in Container** from the command palette (`⇧⌘P`).
 3. VS Code builds the dev container and starts all infrastructure (Kafka, PostgreSQL) automatically. The `postCreateCommand` installs all Python dependencies — no virtual environment is used.
-4. Open the Run and Debug panel (`F5`) and add a launch configuration pointing to the `uvicorn` or `python -m` commands above.
-
-
-The following ports are forwarded to your host:
+4. The following ports are forwarded to your host:
 
 | Port | Service | Purpose |
 |---|---|---|

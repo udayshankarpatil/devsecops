@@ -19,7 +19,7 @@ docker compose build api
 # Full stack
 docker compose up
 
-# Infrastructure only** (run services locally during development):
+# Infrastructure only (run services locally during development):
 docker compose up postgres kafka
 
 # Shutdown
@@ -47,7 +47,9 @@ KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
 
 ## Running Tests
 
-Run all tests from inside the dev container:
+From VS Code, all tests across all three services are discoverable and runnable via the Test Explorer panel (the beaker icon). Tests can be run individually, by service, or all at once.
+
+From a terminal inside the dev container:
 
 ```bash
 (cd services/api && pytest -v) && (cd services/ingest && pytest -v) && (cd services/fetch && pytest -v)
