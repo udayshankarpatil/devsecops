@@ -1,0 +1,12 @@
+.temp
+.claude/settings.local.json
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Build artifacts
+*.egg-info/
+build/
+.vscode

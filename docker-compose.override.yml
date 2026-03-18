@@ -1,0 +1,25 @@
+# Development overrides — loaded automatically by `docker compose up`.
+# Selects the `dev` build target for each service (editable install + live reload)
+# and mounts the live source tree into the container so code changes are reflected
+# immediately without rebuilding the image.
+services:
+  api:
+    build:
+      context: ./services/api
+      target: dev
+    volumes:
+      - ./services/api/src:/app/src
+
+  fetch:
+    build:
+      context: ./services/fetch
+      target: dev
+    volumes:
+      - ./services/fetch/src:/app/src
+
+  ingest:
+    build:
+      context: ./services/ingest
+      target: dev
+    volumes:
+      - ./services/ingest/src:/app/src
