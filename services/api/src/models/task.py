@@ -1,5 +1,7 @@
+from datetime import datetime
 from enum import Enum
 from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -22,3 +24,12 @@ class TaskUpdate(BaseModel):
     status: Optional[TaskStatus] = None
 
     model_config = {"extra": "forbid"}
+
+
+class TaskResponse(BaseModel):
+    id: UUID
+    title: str
+    description: Optional[str] = None
+    status: TaskStatus
+    created_at: datetime
+    updated_at: datetime

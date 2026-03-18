@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Request, status
 
 from ..clients import fetch
-from ..models.task import TaskCreate, TaskUpdate
+from ..models.task import TaskCreate, TaskResponse, TaskUpdate
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -15,12 +15,12 @@ async def create_task(body: TaskCreate, request: Request):
     return {"task_id": task_id}
 
 
-@router.get("")
+@router.get("", response_model=list[TaskResponse])
 async def list_tasks(request: Request):
     return await fetch.get_tasks(request)
 
 
-@router.get("/{task_id}")
+@router.get("/{task_id}", response_model=TaskResponse)
 async def get_task(task_id: str, request: Request):
     return await fetch.get_task(request, task_id)
 

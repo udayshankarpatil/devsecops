@@ -9,3 +9,4 @@ __pycache__/
 # Build artifacts
 *.egg-info/
 build/
+.vscode

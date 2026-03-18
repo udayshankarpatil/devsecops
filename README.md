@@ -167,11 +167,19 @@ cd services/ingest && pytest
 cd services/fetch && pytest
 ```
 
-### Calling the API from the Browser
+### Swagger UI
 
-With the stack running, open **http://localhost:8000/docs** for the interactive Swagger UI.
+With the stack running, the API is self-documenting via FastAPI's built-in OpenAPI support:
 
-**curl examples:**
+| URL | Description |
+|---|---|
+| http://localhost:8000/docs | Swagger UI — interactive, try requests in the browser |
+| http://localhost:8000/redoc | ReDoc — alternative read-only documentation view |
+| http://localhost:8000/openapi.json | Raw OpenAPI schema (JSON) |
+
+Swagger UI lets you expand any endpoint, view its request/response schema, and execute requests directly — no curl or Postman needed.
+
+### curl examples
 ```bash
 # Create a task
 curl -s -X POST http://localhost:8000/tasks \

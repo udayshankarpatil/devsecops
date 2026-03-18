@@ -1,6 +1,16 @@
 import httpx
 from unittest.mock import MagicMock
 
+TASK_ID = "00000000-0000-0000-0000-000000000001"
+TASK_STUB = {
+    "id": TASK_ID,
+    "title": "T1",
+    "status": "pending",
+    "description": None,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z",
+}
+
 
 def make_response(status_code: int, body=None):
     mock = MagicMock()
@@ -44,20 +54,19 @@ def test_create_task_missing_title(client):
 
 def test_list_tasks(client):
     tc, _, http_client = client
-    tasks = [{"id": "abc", "title": "T1", "status": "pending"}]
-    http_client.get.return_value = make_response(200, tasks)
+    http_client.get.return_value = make_response(200, [TASK_STUB])
     resp = tc.get("/tasks")
     assert resp.status_code == 200
-    assert resp.json() == tasks
+    assert len(resp.json()) == 1
+    assert resp.json()[0]["title"] == "T1"
 
 
 def test_get_task(client):
     tc, _, http_client = client
-    task = {"id": "abc", "title": "T1", "status": "pending"}
-    http_client.get.return_value = make_response(200, task)
-    resp = tc.get("/tasks/abc")
+    http_client.get.return_value = make_response(200, TASK_STUB)
+    resp = tc.get(f"/tasks/{TASK_ID}")
     assert resp.status_code == 200
-    assert resp.json()["id"] == "abc"
+    assert resp.json()["id"] == TASK_ID
 
 
 def test_get_task_not_found(client):

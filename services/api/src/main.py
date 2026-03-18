@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Task Manager – Service A (Gateway)",
+    title="Task Manager API",
     version="0.1.0",
     lifespan=lifespan,
 )
