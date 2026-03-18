@@ -2,10 +2,12 @@
   "name": "devsecops",
   "dockerComposeFile": ["../docker-compose.yml", "docker-compose.yml"],
   "service": "devcontainer",
-  "workspaceFolder": "/workspace",
+  "workspaceFolder": "/workspace/devsecops",
   "remoteUser": "vscode",
   "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": false
+    }
   },
   "customizations": {
     "vscode": {
@@ -26,6 +28,9 @@
       }
     }
   },
-  "postCreateCommand": "pip install --no-cache-dir \"./services/api[dev]\" \"./services/ingest[dev]\" \"./services/fetch[dev]\"",
+  "postCreateCommand": "cd services && pip install --no-cache-dir './api[dev]' './ingest[dev]' './fetch[dev]'",
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:/home/vscode/.local/bin"
+  },
   "forwardPorts": [8000, 8002, 5432, 9092]
 }

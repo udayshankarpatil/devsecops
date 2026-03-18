@@ -2,7 +2,7 @@ services:
   devcontainer:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: .devcontainer/Dockerfile
     volumes:
       - ..:/workspace:cached
       - /var/run/docker.sock:/var/run/docker.sock

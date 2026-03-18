@@ -4,18 +4,39 @@ A task management backend built as three cooperating Python microservices in a m
 
 ## Overview
 
+
+```mermaid
+flowchart LR
+    Client -->|REST| api
+
+    subgraph Persistence
+        DB[(PostgreSQL)]
+    end
+
+    subgraph Gateway
+        api
+    end
+
+    subgraph Services
+        api -.->|Kafka\ntasks topic| ingest
+        ingest -->|asyncpg| DB
+    
+        api -->|HTTP GET| fetch
+        fetch -->|asyncpg| DB
+    end
+```
+
 | Service | Role | Port |
 |---|---|---|
 | **api** | REST gateway — accepts client requests, publishes Kafka events for writes, calls `fetch` for reads | 8000 |
 | **ingest** | Kafka consumer — processes task events and persists them to PostgreSQL | — |
 | **fetch** | Retrieval service — serves read queries directly from PostgreSQL | 8002 (internal) |
 
-**Write flow:** Client → api → Kafka → ingest → PostgreSQL
-**Read flow:** Client → api → fetch → PostgreSQL
+
 
 ## API
 
-All public endpoints are on **Service A** at `http://localhost:8000`.
+All public endpoints are on **api** at `http://localhost:8000`.
 
 | Method | Path | Description | Response |
 |---|---|---|---|
@@ -60,7 +81,7 @@ devsecops/
 Each service directory shares the same layout:
 
 ```
-service-x/
+service-name/
 ├── src/              # Python package (application source)
 ├── tests/            # pytest unit tests
 ├── Dockerfile        # Container image definition

@@ -4,6 +4,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl git postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
+# Pre-install all service dependencies as a cached image layer.
+# Only re-runs when a pyproject.toml changes — no re-downloads on normal rebuilds.
+# Empty src/ stubs satisfy setuptools' package discovery without needing real source.
+COPY services/api/pyproject.toml /tmp/build/api/pyproject.toml
+COPY services/ingest/pyproject.toml /tmp/build/ingest/pyproject.toml
+COPY services/fetch/pyproject.toml /tmp/build/fetch/pyproject.toml
+RUN mkdir -p /tmp/build/api/src /tmp/build/ingest/src /tmp/build/fetch/src \
+ && pip install --no-cache-dir \
+    '/tmp/build/api[dev]' \
+    '/tmp/build/ingest[dev]' \
+    '/tmp/build/fetch[dev]'
+
 ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=1000
