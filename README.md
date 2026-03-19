@@ -78,6 +78,9 @@ Swagger UI lets you expand any endpoint, view its request/response schema, and e
 devsecops/
 ├── .claude/                  # Claude Code slash commands (/docker-build, /test-all, /logs)
 ├── .devcontainer/            # VS Code Dev Container config and dev image Dockerfile
+├── .github/
+│   └── workflows/
+│       └── ci.yml            # CI: tests on PR, build + push to GHCR on merge
 ├── docs/                     # Extended documentation
 ├── infra/
 │   └── db/
@@ -113,6 +116,7 @@ service-name/
 | Messaging | Apache Kafka (KRaft mode) |
 | Database | PostgreSQL 16 |
 | Containerisation | Docker, Docker Compose v2 |
+| CI / image registry | GitHub Actions, GHCR |
 | Development | VS Code Dev Containers |
 
 ## Developer Guide
