@@ -125,7 +125,7 @@ No secret creation is needed. GitHub injects `GITHUB_TOKEN` into every workflow 
 
 After each merge into `temp-ci`:
 
-```
+```sh
 ghcr.io/<owner>/task-manager/api:<commit-sha>     # immutable — use this for deployments
 ghcr.io/<owner>/task-manager/api:dev              # floating — always points to latest merge
 ghcr.io/<owner>/task-manager/fetch:<commit-sha>
