@@ -13,7 +13,7 @@ on:
 env:
   # Opt into Node.js 24 for all JavaScript actions (checkout, setup-python, etc.)
   # Node.js 20 is deprecated on GitHub runners as of June 2026.
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   REGISTRY: ghcr.io
   # Resolves to ghcr.io/<owner>/task-manager — lower-cased at use time
   IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/task-manager
