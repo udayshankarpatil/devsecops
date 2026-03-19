@@ -12,6 +12,7 @@ KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "tasks")
 SERVICE_C_BASE_URL = os.getenv("SERVICE_C_BASE_URL", "http://localhost:8002")
 
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.producer = KafkaProducer(KAFKA_BOOTSTRAP_SERVERS, KAFKA_TOPIC)
