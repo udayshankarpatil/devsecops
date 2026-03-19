@@ -93,7 +93,7 @@ The workflow lives in `.github/workflows/ci.yml` and has two jobs:
 | Event | Jobs that run |
 |---|---|
 | PR opened / updated against `dev` | **test** (all three services) |
-| PR merged into `dev` | **test** then **build** (push images to GHCR) |
+| PR merged into `dev` | **test** → **build** (push images to GHCR) → **update-gitops** (pin SHA in helm/values.yaml) |
 
 ### Day-to-day developer workflow
 
@@ -132,6 +132,96 @@ ghcr.io/<owner>/task-manager/fetch:<commit-sha>
 ghcr.io/<owner>/task-manager/fetch:dev
 ghcr.io/<owner>/task-manager/ingest:<commit-sha>
 ghcr.io/<owner>/task-manager/ingest:dev
+```
+
+## CD — Local Kubernetes with Kind and ArgoCD
+
+The CD setup runs the three app services in a local [Kind](https://kind.sigs.k8s.io/) (Kubernetes-in-Docker) cluster. Postgres and Kafka remain in docker-compose; the Kind node is connected to the same Docker network so pods can reach them by name without any config changes.
+
+### How GitOps works
+
+```
+merge to dev
+    │
+    ▼
+CI: build + push images to GHCR
+    │
+    ▼
+CI: commit updated SHA tags to gitops branch (helm/task-manager/values.yaml)
+    │
+    ▼
+ArgoCD: detects gitops change, syncs Kind cluster
+    │
+    ▼
+Kind: rolls out new pods
+```
+
+ArgoCD watches the `gitops` branch, not `dev`. The `gitops` branch is written only by CI and is never edited by hand.
+
+### Prerequisites (host machine — not inside devcontainer)
+
+```bash
+brew install ansible kind kubectl helm yq
+ansible-galaxy collection install -r ansible/requirements.yml
+```
+
+### One-time setup
+
+**1. Start docker-compose infrastructure**
+
+```bash
+docker compose up postgres kafka
+```
+
+**2. Verify `argocd/application.yaml`** — `repoURL` is set to `https://github.com/udayshankarpatil/devsecops.git`.
+
+**3. Verify `helm/task-manager/values.yaml`** — `image.owner` is set to `udayshankarpatil`.
+
+**4. Initialise the gitops branch** (only needed once — CI manages it after this)
+
+```bash
+git checkout --orphan gitops
+git rm -rf .
+mkdir -p helm
+cp -r helm/task-manager helm/   # copy chart from dev branch first
+git add helm/
+git commit -m "init: gitops branch"
+git push origin gitops
+git checkout dev
+```
+
+**5. Bootstrap the cluster**
+
+```bash
+ansible-playbook ansible/kind-up.yml -e image_owner=<your-github-username>
+```
+
+This is idempotent — safe to run again if anything fails midway.
+
+### Accessing the cluster
+
+| What | How |
+|---|---|
+| API (via Kind NodePort) | `http://localhost:8080` |
+| ArgoCD UI | `kubectl port-forward svc/argocd-server -n argocd 8443:443` → `https://localhost:8443` |
+| ArgoCD initial password | `kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' \| base64 -d` |
+
+### Tearing down
+
+```bash
+ansible-playbook ansible/kind-down.yml
+```
+
+docker-compose services are left running. Run `docker compose down` separately if needed.
+
+### Verifying a deployment
+
+After a merge triggers CI and ArgoCD syncs:
+
+```bash
+kubectl get pods -n task-manager          # all three pods Running
+kubectl get application -n argocd         # Synced / Healthy
+curl http://localhost:8080/health         # {"status":"ok"} from api pod
 ```
 
 ## Schema Changes

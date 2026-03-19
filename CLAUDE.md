@@ -108,15 +108,27 @@ docker compose logs -f [api|ingest|fetch|kafka|postgres]
 The CI pipeline runs on GitHub Actions (`.github/workflows/ci.yml`):
 
 - **PRs targeting `dev`** — runs the test matrix (all three services); must pass before merge
-- **Merge into `dev`** — runs tests then builds and pushes production images to GHCR
+- **Merge into `dev`** — tests → build + push prod images to GHCR → commit updated image SHA to the `gitops` branch
 
-Published image names follow the pattern:
+Published image names:
 ```
-ghcr.io/<owner>/task-manager/<service>:<commit-sha>   # immutable — pin this in deployments
+ghcr.io/<owner>/task-manager/<service>:<commit-sha>   # immutable — pinned in gitops branch
 ghcr.io/<owner>/task-manager/<service>:dev            # floating — latest merged build
 ```
 
 `GITHUB_TOKEN` is injected automatically; no secrets need to be created.
+
+The CD layer uses ArgoCD watching the `gitops` branch + a Kind cluster for local k8s:
+
+```bash
+# Bootstrap local cluster (host machine, not devcontainer)
+ansible-playbook ansible/kind-up.yml -e image_owner=<github-username>
+
+# Tear down
+ansible-playbook ansible/kind-down.yml
+```
+
+Playbooks are idempotent — safe to re-run. See `docs/developer-guide.md` for full CD setup instructions.
 
 ## Known Limitations (future work)
 

@@ -1,0 +1,29 @@
+---
+# Tear down the local Kind cluster for task-manager.
+# Idempotent — safe to run when the cluster is already absent.
+# docker-compose services (postgres, kafka) are left running.
+#
+# Usage:
+#   ansible-playbook ansible/kind-down.yml
+
+- name: Tear down Kind cluster for task-manager
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    cluster_name: task-manager
+
+  tasks:
+    - name: Get existing Kind clusters
+      ansible.builtin.command: kind get clusters
+      register: kind_clusters
+      changed_when: false
+
+    - name: Delete Kind cluster
+      ansible.builtin.command: kind delete cluster --name {{ cluster_name }}
+      when: cluster_name in kind_clusters.stdout
+
+    - name: Done
+      ansible.builtin.debug:
+        msg: "Kind cluster '{{ cluster_name }}' has been removed."

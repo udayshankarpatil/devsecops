@@ -1,0 +1,10 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      # Maps the api NodePort (30080) to localhost:8080 on the host.
+      # After deploying, the api is reachable at http://localhost:8080.
+      - containerPort: 30080
+        hostPort: 8080
+        protocol: TCP

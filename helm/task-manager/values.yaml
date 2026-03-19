@@ -1,0 +1,43 @@
+# Container registry settings.
+# Set `owner` to your GitHub username or organisation name (lower-case).
+image:
+  registry: ghcr.io
+  owner: udayshankarpatil
+
+# Per-service image tags.
+# These three fields are updated automatically by the CI update-gitops job
+# on every merge to `dev`. Do not edit by hand on the gitops branch.
+images:
+  api:
+    tag: dev
+  fetch:
+    tag: dev
+  ingest:
+    tag: dev
+
+# Non-sensitive runtime configuration, injected via ConfigMap.
+# Values match docker-compose env vars so the same image works in both environments.
+config:
+  kafkaBootstrapServers: kafka:9092
+  kafkaTopic: tasks
+  kafkaGroupId: ingest-group
+  # fetch is reachable by its k8s Service name within the same namespace
+  fetchBaseUrl: http://fetch:8002
+
+# DATABASE_URL is sensitive and is NOT stored here.
+# It is injected from a k8s Secret named `task-manager-db` (key: DATABASE_URL).
+# The secret is created by `ansible/kind-up.yml` and never committed to git.
+
+api:
+  replicas: 1
+  port: 8000
+  # NodePort exposed on the Kind node; mapped to hostPort 8080 via kind-config.yaml.
+  # Access the api at http://localhost:8080 when running on Kind.
+  nodePort: 30080
+
+fetch:
+  replicas: 1
+  port: 8002
+
+ingest:
+  replicas: 1

@@ -1,0 +1,128 @@
+---
+# Bootstrap a local Kind cluster for task-manager development.
+# Idempotent — safe to run repeatedly; skips steps that are already complete.
+#
+# Prerequisites (host machine, not devcontainer):
+#   brew install ansible kind kubectl helm yq
+#   ansible-galaxy collection install -r ansible/requirements.yml
+#
+# Usage:
+#   ansible-playbook ansible/kind-up.yml
+#   ansible-playbook ansible/kind-up.yml -e image_owner=udayshankarpatil
+#
+# After completion the api is available at http://localhost:8080.
+
+- name: Bootstrap Kind cluster for task-manager
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    cluster_name: task-manager
+    namespace: task-manager
+    argocd_namespace: argocd
+    # Docker network created by docker-compose for the backend services.
+    # Connecting the Kind node to this network lets pods reach postgres and kafka
+    # by their docker-compose service names (no env var changes needed).
+    docker_network: devsecops_backend
+    image_owner: udayshankarpatil
+    db_url: postgresql://tasksuser:taskspass@postgres:5432/tasksdb
+
+  tasks:
+    # ── Kind cluster ──────────────────────────────────────────────────────────
+
+    - name: Get existing Kind clusters
+      ansible.builtin.command: kind get clusters
+      register: kind_clusters
+      changed_when: false
+
+    - name: Create Kind cluster
+      ansible.builtin.command: >
+        kind create cluster
+        --name {{ cluster_name }}
+        --config ansible/kind-config.yaml
+      when: cluster_name not in kind_clusters.stdout
+
+    # ── Docker network bridging ───────────────────────────────────────────────
+    # Connecting the Kind node container to the docker-compose backend network
+    # lets pods resolve `postgres` and `kafka` by name without changing env vars.
+
+    - name: Get Kind node container name
+      ansible.builtin.command: >
+        docker ps --filter "name={{ cluster_name }}-control-plane" --format "{{ '{{' }}.Names{{ '}}' }}"
+      register: kind_node
+      changed_when: false
+
+    - name: Check if Kind node is already on the docker-compose network
+      ansible.builtin.command: >
+        docker network inspect {{ docker_network }} --format "{{ '{{' }}json .Containers{{ '}}' }}"
+      register: network_containers
+      changed_when: false
+      failed_when: false
+
+    - name: Connect Kind node to docker-compose backend network
+      ansible.builtin.command: docker network connect {{ docker_network }} {{ kind_node.stdout }}
+      when:
+        - kind_node.stdout != ""
+        - network_containers.rc == 0
+        - kind_node.stdout not in network_containers.stdout
+      register: net_connect
+      failed_when:
+        - net_connect.rc != 0
+        - "'already exists' not in net_connect.stderr"
+      changed_when: net_connect.rc == 0
+
+    # ── Kubernetes namespace ───────────────────────────────────────────────────
+
+    - name: Create task-manager namespace
+      kubernetes.core.k8s:
+        name: "{{ namespace }}"
+        api_version: v1
+        kind: Namespace
+        state: present
+
+    # ── Database secret ───────────────────────────────────────────────────────
+    # Created directly (not via Helm) so DATABASE_URL never touches values.yaml.
+
+    - name: Create database secret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: task-manager-db
+            namespace: "{{ namespace }}"
+          stringData:
+            DATABASE_URL: "{{ db_url }}"
+
+    # ── ArgoCD ────────────────────────────────────────────────────────────────
+
+    - name: Add ArgoCD Helm repository
+      kubernetes.core.helm_repository:
+        name: argo
+        repo_url: https://argoproj.github.io/argo-helm
+
+    - name: Install ArgoCD
+      kubernetes.core.helm:
+        name: argocd
+        chart_ref: argo/argo-cd
+        release_namespace: "{{ argocd_namespace }}"
+        create_namespace: true
+        wait: true
+        wait_timeout: 5m
+
+    # ── ArgoCD Application ────────────────────────────────────────────────────
+
+    - name: Apply ArgoCD Application manifest
+      kubernetes.core.k8s:
+        state: present
+        src: argocd/application.yaml
+
+    - name: Done
+      ansible.builtin.debug:
+        msg:
+          - "Kind cluster '{{ cluster_name }}' is ready."
+          - "ArgoCD is syncing from the gitops branch."
+          - "API will be available at http://localhost:8080 once ArgoCD syncs."
+          - "ArgoCD UI: kubectl port-forward svc/argocd-server -n argocd 8443:443"

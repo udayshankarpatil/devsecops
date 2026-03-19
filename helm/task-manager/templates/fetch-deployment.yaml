@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fetch
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: fetch
+    {{- include "task-manager.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.fetch.replicas }}
+  selector:
+    matchLabels:
+      app: fetch
+  template:
+    metadata:
+      labels:
+        app: fetch
+    spec:
+      containers:
+        - name: fetch
+          image: {{ include "task-manager.imageBase" . }}/fetch:{{ .Values.images.fetch.tag }}
+          ports:
+            - containerPort: {{ .Values.fetch.port }}
+          # DATABASE_URL comes from Secret; no Kafka access needed
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: task-manager-db
+                  key: DATABASE_URL
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.fetch.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.fetch.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5

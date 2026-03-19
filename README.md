@@ -80,7 +80,14 @@ devsecops/
 ├── .devcontainer/            # VS Code Dev Container config and dev image Dockerfile
 ├── .github/
 │   └── workflows/
-│       └── ci.yml            # CI: tests on PR, build + push to GHCR on merge
+│       └── ci.yml            # CI: tests on PR, build + push to GHCR on merge, update gitops branch
+├── ansible/                  # Idempotent playbooks for local cluster management
+│   ├── kind-config.yaml      # Kind cluster definition (NodePort mapping)
+│   ├── kind-up.yml           # Bootstrap Kind + ArgoCD + secrets
+│   ├── kind-down.yml         # Tear down the Kind cluster
+│   └── requirements.yml      # Ansible collection dependencies
+├── argocd/
+│   └── application.yaml      # ArgoCD Application — watches gitops branch
 ├── docs/                     # Extended documentation
 ├── infra/
 │   └── db/
@@ -89,6 +96,8 @@ devsecops/
 │   ├── api/                  # Gateway: FastAPI REST API, Kafka producer, HTTP client to fetch
 │   ├── ingest/               # Ingestion: Kafka consumer, asyncpg writes to PostgreSQL
 │   └── fetch/                # Retrieval: FastAPI read-only API, asyncpg queries
+├── helm/
+│   └── task-manager/         # Helm chart for k8s deployment (api, fetch, ingest)
 ├── CLAUDE.md                 # Project conventions and context for Claude Code
 ├── docker-compose.yml        # Full-stack orchestration (all services + Kafka + PostgreSQL)
 ├── docker-compose.override.yml  # Dev overrides: live-reload targets and source volume mounts
@@ -117,6 +126,8 @@ service-name/
 | Database | PostgreSQL 16 |
 | Containerisation | Docker, Docker Compose v2 |
 | CI / image registry | GitHub Actions, GHCR |
+| CD / GitOps | ArgoCD, Helm, Kind (local) |
+| Cluster automation | Ansible |
 | Development | VS Code Dev Containers |
 
 ## Developer Guide
