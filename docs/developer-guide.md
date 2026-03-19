@@ -92,12 +92,12 @@ The workflow lives in `.github/workflows/ci.yml` and has two jobs:
 
 | Event | Jobs that run |
 |---|---|
-| PR opened / updated against `temp-ci` | **test** (all three services) |
-| PR merged into `temp-ci` | **test** then **build** (push images to GHCR) |
+| PR opened / updated against `dev` | **test** (all three services) |
+| PR merged into `dev` | **test** then **build** (push images to GHCR) |
 
 ### Day-to-day developer workflow
 
-1. Branch off `temp-ci`, make your changes, open a PR back to `temp-ci`.
+1. Branch off `dev`, make your changes, open a PR back to `dev`.
 2. The three test jobs run automatically. All must be green before the PR can be merged (if branch protection is configured — see below).
 3. On merge, production images are built and pushed to GHCR tagged with the commit SHA and a floating `dev` tag.
 
@@ -109,7 +109,7 @@ Settings → Actions → General → Workflow permissions → **Read and write p
 
 **2. Protect the branch** (optional but recommended)
 
-Settings → Branches → Add rule for `temp-ci`:
+Settings → Branches → Add rule for `dev`:
 - Enable **Require status checks to pass before merging**
 - Add checks: `Test api`, `Test fetch`, `Test ingest`
 
@@ -123,7 +123,7 @@ No secret creation is needed. GitHub injects `GITHUB_TOKEN` into every workflow 
 
 ### Published images
 
-After each merge into `temp-ci`:
+After each merge into `dev`:
 
 ```sh
 ghcr.io/<owner>/task-manager/api:<commit-sha>     # immutable — use this for deployments

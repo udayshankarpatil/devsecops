@@ -1,14 +1,14 @@
 name: CI
 
-# Tests run on every PR targeting temp-ci.
-# Build (image push to GHCR) runs only after a successful merge into temp-ci.
+# Tests run on every PR targeting dev.
+# Build (image push to GHCR) runs only after a successful merge into dev.
 # GITHUB_TOKEN is injected automatically — no secret creation needed.
 # The `packages: write` permission below is all that's required for GHCR access.
 on:
   push:
-    branches: [temp-ci]
+    branches: [dev]
   pull_request:
-    branches: [temp-ci]
+    branches: [dev]
 
 env:
   REGISTRY: ghcr.io
@@ -56,7 +56,7 @@ jobs:
     name: Build ${{ matrix.service }}
     runs-on: ubuntu-latest
     needs: test
-    # Only run on push events (i.e. a merge into temp-ci), not on PR events.
+    # Only run on push events (i.e. a merge into dev), not on PR events.
     # This means: tests gate the PR, build runs after the merge succeeds.
     if: github.event_name == 'push'
     permissions:
