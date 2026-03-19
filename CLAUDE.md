@@ -63,6 +63,9 @@ cd services/api && pytest
 cd services/ingest && pytest
 cd services/fetch && pytest
 
+# Run all tests from repo root (pytest.toml configures unified discovery)
+pytest
+
 # Reset database (destroys all data)
 docker compose down -v
 
@@ -72,9 +75,10 @@ docker compose logs -f [api|ingest|fetch|kafka|postgres]
 
 ## Dev Container
 
-- Python 3.11+ installed system-wide (no venv)
-- `postCreateCommand` installs all three services' deps in one pass
+- Python 3.12 installed system-wide (no venv)
+- `postCreateCommand` installs all three services' deps in one pass with `-e` (editable install)
 - Dev container joins the same Docker network as infra services
+- `docker-compose.override.yml` is auto-loaded, selecting the `dev` build target and mounting live source trees for hot reload
 - Ports forwarded: `8000`, `8002`, `5432`, `9092`
 
 ## Testing Approach
@@ -94,10 +98,25 @@ docker compose logs -f [api|ingest|fetch|kafka|postgres]
 
 ## Adding a New Service
 
-1. Create `services/<name>/` with its own `Dockerfile`, `pyproject.toml`, `app/`, and `tests/`.
+1. Create `services/<name>/` with its own `Dockerfile`, `pyproject.toml`, `src/<name>/`, and `tests/`.
 2. Add the service to `docker-compose.yml` using existing services as a template.
 3. Wire `depends_on` for Kafka and/or Postgres as needed.
 4. Update the Architecture section in this file and in `README.md`.
+
+## CI/CD
+
+The CI pipeline runs on GitHub Actions (`.github/workflows/ci.yml`):
+
+- **PRs targeting `dev`** — runs the test matrix (all three services); must pass before merge
+- **Merge into `dev`** — runs tests then builds and pushes production images to GHCR
+
+Published image names follow the pattern:
+```
+ghcr.io/<owner>/task-manager/<service>:<commit-sha>   # immutable — pin this in deployments
+ghcr.io/<owner>/task-manager/<service>:dev            # floating — latest merged build
+```
+
+`GITHUB_TOKEN` is injected automatically; no secrets need to be created.
 
 ## Known Limitations (future work)
 
