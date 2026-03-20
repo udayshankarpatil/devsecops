@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: task-manager
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    # Replace with your actual GitHub repository URL.
+    repoURL: https://github.com/udayshankarpatil/devsecops.git
+    # ArgoCD watches the gitops branch. CI commits updated image tags here
+    # on every merge to dev; ArgoCD auto-syncs the cluster in response.
+    targetRevision: gitops
+    path: ops/helm/task-manager
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: task-manager
+
+  syncPolicy:
+    automated:
+      # Remove resources from the cluster when they are removed from git
+      prune: true
+      # Re-apply if the cluster state drifts from the gitops branch
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

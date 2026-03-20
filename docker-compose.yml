@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: taskspass
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./infra/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./ops/infra/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tasksuser -d tasksdb"]
       interval: 5s

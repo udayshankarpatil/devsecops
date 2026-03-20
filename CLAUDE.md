@@ -17,7 +17,7 @@ Client → api (REST, :8000) ──[Kafka: tasks]──► ingest (consumer) ─
 | `services/ingest/` | aiokafka consumer. Writes to PostgreSQL. No HTTP server. |
 | `services/fetch/` | FastAPI read-only API. asyncpg queries against PostgreSQL. |
 
-Infrastructure lives in `docker-compose.yml`. Schema is in `infra/db/init.sql`.
+Infrastructure lives in `docker-compose.yml`. Schema is in `ops/infra/db/init.sql`.
 
 ## Kafka Message Format
 
@@ -35,7 +35,7 @@ Infrastructure lives in `docker-compose.yml`. Schema is in `infra/db/init.sql`.
 
 ## Database
 
-- Schema: `infra/db/init.sql` (mounted into Postgres at first boot)
+- Schema: `ops/infra/db/init.sql` (mounted into Postgres at first boot)
 - No ORM — raw `asyncpg` throughout
 - No migrations yet — schema changes require `docker compose down -v`
 - `updated_at` is maintained automatically by a `BEFORE UPDATE` trigger in `init.sql`
@@ -46,7 +46,29 @@ Mutation endpoints return `202 Accepted` with `{"task_id": "..."}`. The DB write
 
 UUIDs are generated in `api` before publishing, so callers get an ID in the `202` response without polling.
 
+## Quick Reference
+
+```bash
+bash help.sh   # one-screen summary of all developer commands
+```
+
+## Local Deployment Modes
+
+There are two ways to run the application locally. They can coexist without port
+conflicts. See `docs/port-mappings.md` for full host port and network topology details.
+
+| | Mode 1: docker-compose | Mode 2: Kind (local Kubernetes) |
+|---|---|---|
+| **Use for** | Active development, hot reload | Validating the GitOps/CD pipeline |
+| **API port** | `http://localhost:8000` | `http://localhost:8080` |
+| **Started with** | `docker compose up` | `ansible-playbook ops/ansible/kind-up.yml` |
+
+Postgres and Kafka always run in docker-compose. In Mode 2 the Kind node is
+connected to the same Docker network so pods reach them by service name.
+
 ## Key Commands
+
+### Mode 1 — docker-compose
 
 ```bash
 # Start everything
@@ -58,19 +80,38 @@ docker compose up postgres kafka
 # Build images
 docker compose build [api|ingest|fetch]
 
-# Run tests per service
-cd services/api && pytest
-cd services/ingest && pytest
-cd services/fetch && pytest
-
-# Run all tests from repo root (pytest.toml configures unified discovery)
-pytest
-
 # Reset database (destroys all data)
 docker compose down -v
 
 # Tail logs
 docker compose logs -f [api|ingest|fetch|kafka|postgres]
+```
+
+### Mode 2 — Kind
+
+```bash
+# Bootstrap everything from scratch (host machine, not devcontainer)
+bash ops/bootstrap.sh                                   # prompts for GitHub username
+bash ops/bootstrap.sh -e image_owner=<github-username>  # non-interactive
+
+# Tear down cluster
+ansible-playbook ops/ansible/kind-down.yml
+
+# Verify setup / verify app is running
+bash ops/scripts/check-setup.sh
+bash ops/scripts/check-running.sh
+```
+
+### Tests
+
+```bash
+# Run all tests from repo root
+pytest
+
+# Per service
+cd services/api && pytest
+cd services/ingest && pytest
+cd services/fetch && pytest
 ```
 
 ## Dev Container
@@ -79,7 +120,7 @@ docker compose logs -f [api|ingest|fetch|kafka|postgres]
 - `postCreateCommand` installs all three services' deps in one pass with `-e` (editable install)
 - Dev container joins the same Docker network as infra services
 - `docker-compose.override.yml` is auto-loaded, selecting the `dev` build target and mounting live source trees for hot reload
-- Ports forwarded: `8000`, `8002`, `5432`, `9092`
+- Ports forwarded to host: `8000` (api), `8002` (fetch), `5432` (postgres), `9092` (kafka)
 
 ## Testing Approach
 
@@ -108,15 +149,17 @@ docker compose logs -f [api|ingest|fetch|kafka|postgres]
 The CI pipeline runs on GitHub Actions (`.github/workflows/ci.yml`):
 
 - **PRs targeting `dev`** — runs the test matrix (all three services); must pass before merge
-- **Merge into `dev`** — runs tests then builds and pushes production images to GHCR
+- **Merge into `dev`** — tests → build + push prod images to GHCR → commit updated image SHA to the `gitops` branch
 
-Published image names follow the pattern:
+Published image names:
 ```
-ghcr.io/<owner>/task-manager/<service>:<commit-sha>   # immutable — pin this in deployments
+ghcr.io/<owner>/task-manager/<service>:<commit-sha>   # immutable — pinned in gitops branch
 ghcr.io/<owner>/task-manager/<service>:dev            # floating — latest merged build
 ```
 
 `GITHUB_TOKEN` is injected automatically; no secrets need to be created.
+
+The CD layer uses ArgoCD watching the `gitops` branch + a Kind cluster for local k8s (Mode 2 above). Playbooks are idempotent — safe to re-run. See `docs/developer-guide.md` for full setup instructions.
 
 ## Known Limitations (future work)
 

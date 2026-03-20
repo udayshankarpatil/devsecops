@@ -1,32 +1,52 @@
 # Developer Guide
 
-## Building Docker Images
+> For a one-screen command reference run `bash help.sh`.
 
-Rebuild after changing a `Dockerfile` or `pyproject.toml`:
+## Contents
+
+- [Two ways to run locally](#two-ways-to-run-locally)
+- [Mode 1 — docker-compose](#mode-1--docker-compose)
+- [Mode 2 — Kind (local Kubernetes)](#mode-2--kind-local-kubernetes)
+- [CI/CD Pipeline](ci-cd.md)
+
+## Two ways to run locally
+
+| | Mode 1: docker-compose | Mode 2: Kind (local Kubernetes) |
+|---|---|---|
+| **Purpose** | Active development — hot reload, easy log tailing | Test the full GitOps/CD pipeline end-to-end |
+| **Services run in** | Docker containers (bridge network) | Kubernetes pods (inside a Kind cluster) |
+| **API reachable at** | `http://localhost:8000` | `http://localhost:8080` |
+| **Infra (postgres, kafka)** | docker-compose | docker-compose (shared — pods connect to the same containers) |
+| **Started with** | `docker compose up` | `ansible-playbook ops/ansible/kind-up.yml` |
+
+See [port-mappings.md](port-mappings.md) for host port assignments and network topology.
+
+---
+
+## Mode 1 — docker-compose
+
+Use this day-to-day during development. All three services run as Docker containers
+with live source mounts and hot reload.
 
 ```bash
-# Rebuild all services
-docker compose build
-
-# Rebuild a single service
-docker compose build api
-```
-
-## Running the Application
-
-
-```bash
-# Full stack
+# Start full stack
 docker compose up
 
-# Infrastructure only (run services locally during development):
+# Start infra only (run services locally via uvicorn/python directly)
 docker compose up postgres kafka
+
+# Rebuild after changing a Dockerfile or pyproject.toml
+docker compose build [api|ingest|fetch]
 
 # Shutdown
 docker compose down
+
+# Shutdown and wipe the database (destroys all data)
+docker compose down -v
 ```
 
 **Run a service locally** (from within the dev container or with deps installed):
+
 ```bash
 # api
 cd services/api
@@ -45,105 +65,99 @@ KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
   python -m ingest.main
 ```
 
-## Running Tests
-
-From VS Code, all tests across all three services are discoverable and runnable via the Test Explorer panel (the beaker icon). Tests can be run individually, by service, or all at once.
-
-From a terminal inside the dev container:
+**Tests** — discoverable via VS Code Test Explorer (beaker icon) or from a terminal:
 
 ```bash
-(cd services/api && pytest -v) && (cd services/ingest && pytest -v) && (cd services/fetch && pytest -v)
-```
-
-Or per service:
-
-```bash
-cd services/api && pytest
+pytest                          # all services from repo root
+cd services/api    && pytest    # single service
 cd services/ingest && pytest
-cd services/fetch && pytest
+cd services/fetch  && pytest
 ```
 
-## curl examples
+**Schema changes** — the schema lives in `ops/infra/db/init.sql`. PostgreSQL only
+runs this script when the data volume is first created:
 
 ```bash
-# Create a task
-curl -s -X POST http://localhost:8000/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"title": "My first task", "description": "Do the thing", "status": "pending"}' | jq
-
-# List tasks (allow a moment for ingest to write to the DB)
-curl -s http://localhost:8000/tasks | jq
-
-# Get a specific task
-curl -s http://localhost:8000/tasks/<task_id> | jq
-
-# Update a task
-curl -s -X PUT http://localhost:8000/tasks/<task_id> \
-  -H "Content-Type: application/json" \
-  -d '{"status": "done"}' | jq
-
-# Delete a task
-curl -s -X DELETE http://localhost:8000/tasks/<task_id> | jq
+docker compose down -v && docker compose up   # Warning: destroys all data
 ```
 
-## CI Pipeline
+See [api-reference.md](api-reference.md) for endpoint reference and curl examples.
 
-The workflow lives in `.github/workflows/ci.yml` and has two jobs:
+Verify with `docker compose ps` and `curl http://localhost:8000/health`.
 
-| Event | Jobs that run |
+---
+
+## Mode 2 — Kind (local Kubernetes)
+
+Use this to validate the full GitOps pipeline — images are pulled from GHCR,
+ArgoCD manages the rollout, and the app runs as it would in a real cluster.
+Postgres and Kafka are shared with docker-compose. See [ci-cd.md](ci-cd.md) for
+how the pipeline works.
+
+### Prerequisites (host machine — not inside devcontainer)
+
+- macOS with [Homebrew](https://brew.sh)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
+
+Everything else (Ansible, Kind, kubectl, Helm, yq, Galaxy collections) is
+installed automatically by `ops/bootstrap.sh`.
+
+### One-time setup
+
+**1.** Start docker-compose infrastructure:
+
+```bash
+docker compose up postgres kafka
+```
+
+**2.** Verify `ops/argocd/application.yaml` — `repoURL` is set to your repository URL.
+
+**3.** Verify `ops/helm/task-manager/values.yaml` — `image.owner` is set to your GitHub username.
+
+**4.** Initialise the gitops branch (only needed once — CI manages it after this):
+
+```bash
+git checkout --orphan gitops
+git rm -rf .
+mkdir -p ops/helm
+cp -r ops/helm/task-manager ops/helm/
+git add ops/helm/
+git commit -m "init: gitops branch"
+git push origin gitops
+git checkout dev
+```
+
+**5.** Bootstrap tools and the cluster:
+
+```bash
+bash ops/bootstrap.sh                                    # prompts for GitHub username
+bash ops/bootstrap.sh -e image_owner=<github-username>  # non-interactive
+```
+
+Both playbooks are idempotent — safe to re-run if anything fails midway.
+
+### Accessing the cluster
+
+| What | How |
 |---|---|
-| PR opened / updated against `dev` | **test** (all three services) |
-| PR merged into `dev` | **test** then **build** (push images to GHCR) |
+| API | `http://localhost:8080` |
+| ArgoCD UI | `kubectl port-forward svc/argocd-server -n argocd 8443:443` → `https://localhost:8443` |
+| ArgoCD initial password | `kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' \| base64 -d` |
 
-### Day-to-day developer workflow
+### Verifying a deployment
 
-1. Branch off `dev`, make your changes, open a PR back to `dev`.
-2. The three test jobs run automatically. All must be green before the PR can be merged (if branch protection is configured — see below).
-3. On merge, production images are built and pushed to GHCR tagged with the commit SHA and a floating `dev` tag.
-
-### One-time repo setup (owner only)
-
-**1. Allow Actions to push packages**
-
-Settings → Actions → General → Workflow permissions → **Read and write permissions**
-
-**2. Protect the branch** (optional but recommended)
-
-Settings → Branches → Add rule for `dev`:
-- Enable **Require status checks to pass before merging**
-- Add checks: `Test api`, `Test fetch`, `Test ingest`
-
-**3. Make GHCR images public** (after the first merge triggers a build)
-
-Navigate to `github.com/<you>?tab=packages`, open each of the three packages, and set visibility to **Public**. This avoids needing pull credentials in Kubernetes later.
-
-### GITHUB_TOKEN
-
-No secret creation is needed. GitHub injects `GITHUB_TOKEN` into every workflow run automatically. The `packages: write` permission declared in the build job is sufficient for pushing to GHCR.
-
-### Published images
-
-After each merge into `dev`:
-
-```sh
-ghcr.io/<owner>/task-manager/api:<commit-sha>     # immutable — use this for deployments
-ghcr.io/<owner>/task-manager/api:dev              # floating — always points to latest merge
-ghcr.io/<owner>/task-manager/fetch:<commit-sha>
-ghcr.io/<owner>/task-manager/fetch:dev
-ghcr.io/<owner>/task-manager/ingest:<commit-sha>
-ghcr.io/<owner>/task-manager/ingest:dev
+```bash
+kubectl get pods -n task-manager     # all three pods Running
+kubectl get application -n argocd    # Synced / Healthy
+curl http://localhost:8080/health    # {"status":"ok"}
 ```
 
-## Schema Changes
+Or run `bash ops/scripts/check-running.sh` for a full automated check.
 
-The database schema lives in `infra/db/init.sql`. PostgreSQL only runs this script when the data volume is first created.
+### Tearing down
 
-To apply schema changes during development:
+```bash
+ansible-playbook ops/ansible/kind-down.yml
+```
 
-1. Edit `infra/db/init.sql`.
-2. Destroy the data volume and restart:
-   ```bash
-   docker compose down -v && docker compose up
-   ```
-
-> **Warning:** `docker compose down -v` deletes all data. Never run this against an environment with data you need to keep.
+docker-compose services are left running. Run `docker compose down` separately if needed.

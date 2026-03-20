@@ -1,0 +1,77 @@
+---
+# One-time developer environment setup.
+# Installs all host-machine dependencies needed to work on task-manager outside
+# the dev container: CLI tools (via Homebrew) and Ansible Galaxy collections.
+#
+# Prerequisites:
+#   - macOS with Homebrew (https://brew.sh)
+#   - Ansible: the only tool you need before running this playbook
+#     (ops/bootstrap.sh installs it for you if missing)
+#
+# Usage (direct):
+#   ansible-playbook ops/ansible/dev-setup.yml
+#
+# Or let ops/bootstrap.sh handle everything end-to-end, including cluster setup:
+#   bash ops/bootstrap.sh
+
+# ── Play 1: Galaxy collections ────────────────────────────────────────────────
+# Uses only ansible.builtin so it has no collection dependencies itself.
+# Must complete before Play 2 so community.general.homebrew is available.
+- name: Install Ansible Galaxy collections
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Check Docker is installed and running
+      ansible.builtin.command: docker info
+      changed_when: false
+      register: docker_check
+      failed_when: false
+
+    - name: Fail with helpful message if Docker is not running
+      ansible.builtin.fail:
+        msg: |
+          Docker does not appear to be running (or is not installed).
+          Install Docker Desktop and start it, then re-run this playbook.
+          https://www.docker.com/products/docker-desktop/
+      when: docker_check.rc != 0
+
+    - name: Install Ansible Galaxy collections
+      ansible.builtin.command:
+        cmd: ansible-galaxy collection install -r {{ playbook_dir }}/requirements.yml
+      # Galaxy skips already-satisfied versions; treat as non-changing for
+      # idempotency reporting — actual installs are visible in the command output.
+      changed_when: false
+
+# ── Play 2: CLI tools ─────────────────────────────────────────────────────────
+# community.general is now installed so community.general.homebrew is available.
+- name: Install CLI tools via Homebrew
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Install required CLI tools
+      ansible.builtin.command:
+        cmd: brew install kind kubectl helm yq
+      register: brew_install
+      # A brew link conflict means the bottles are installed but not linked.
+      # The follow-up task resolves this with --overwrite.
+      failed_when:
+        - brew_install.rc != 0
+        - "'brew link' not in brew_install.stderr"
+      changed_when: "'already installed' not in brew_install.stdout"
+
+    - name: Re-link CLI tools (resolve brew link conflicts)
+      ansible.builtin.command:
+        cmd: brew link --overwrite kind kubectl helm yq
+      when: brew_install.rc != 0
+      changed_when: true
+
+    - name: Dev setup complete
+      ansible.builtin.debug:
+        msg:
+          - "All developer tools are installed."
+          - "Next: run 'ansible-playbook ops/ansible/kind-up.yml' to bootstrap the Kind cluster,"
+          - "or run 'bash ops/bootstrap.sh' which does both in one step."
