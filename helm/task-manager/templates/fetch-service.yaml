@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: fetch
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: fetch
+    {{- include "task-manager.labels" . | nindent 4 }}
+spec:
+  # ClusterIP — fetch is internal only; api reaches it via http://fetch:8002
+  type: ClusterIP
+  selector:
+    app: fetch
+  ports:
+    - port: {{ .Values.fetch.port }}
+      targetPort: {{ .Values.fetch.port }}

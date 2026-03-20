@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: task-manager-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "task-manager.labels" . | nindent 4 }}
+data:
+  # Shared by api and ingest
+  KAFKA_BOOTSTRAP_SERVERS: {{ .Values.config.kafkaBootstrapServers | quote }}
+  KAFKA_TOPIC: {{ .Values.config.kafkaTopic | quote }}
+  KAFKA_GROUP_ID: {{ .Values.config.kafkaGroupId | quote }}
+  # Used by api to reach the fetch service
+  SERVICE_C_BASE_URL: {{ .Values.config.fetchBaseUrl | quote }}

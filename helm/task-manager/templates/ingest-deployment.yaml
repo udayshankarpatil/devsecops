@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingest
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: ingest
+    {{- include "task-manager.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.ingest.replicas }}
+  selector:
+    matchLabels:
+      app: ingest
+  template:
+    metadata:
+      labels:
+        app: ingest
+    spec:
+      containers:
+        - name: ingest
+          image: {{ include "task-manager.imageBase" . }}/ingest:{{ .Values.images.ingest.tag }}
+          # Kafka settings from ConfigMap; DATABASE_URL from Secret
+          envFrom:
+            - configMapRef:
+                name: task-manager-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: task-manager-db
+                  key: DATABASE_URL
+          # ingest has no HTTP server so liveness is checked via a heartbeat file.
+          # consumer.py touches /tmp/ingest_alive at startup and after each
+          # successfully committed message. See services/ingest/src/ingest/consumer.py.
+          livenessProbe:
+            exec:
+              command: ["cat", "/tmp/ingest_alive"]
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 3
