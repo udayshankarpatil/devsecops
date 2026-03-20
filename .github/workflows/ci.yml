@@ -1,14 +1,15 @@
 name: CI
 
-# Tests run on every PR targeting dev.
-# Build (image push to GHCR) runs only after a successful merge into dev.
+# Tests run on every PR targeting temp-argo.
+# Build (image push to GHCR) runs only after a successful merge into temp-argo.
 # GITHUB_TOKEN is injected automatically — no secret creation needed.
 # The `packages: write` permission below is all that's required for GHCR access.
+# TODO: revert temp-argo → dev once ArgoCD end-to-end test is complete.
 on:
   push:
-    branches: [dev]
+    branches: [temp-argo]
   pull_request:
-    branches: [dev]
+    branches: [temp-argo]
 
 env:
   REGISTRY: ghcr.io
