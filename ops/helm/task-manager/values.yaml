@@ -8,11 +8,11 @@ image:
 # on every merge to `dev`. Do not edit by hand on the gitops branch.
 images:
   api:
-    tag: d4cc8b529825f65076810ba8fd54ef399fe26bb9
+    tag: 5a70bfb4bcc7832efcde982ffaed3ccb08348400
   fetch:
-    tag: d4cc8b529825f65076810ba8fd54ef399fe26bb9
+    tag: 5a70bfb4bcc7832efcde982ffaed3ccb08348400
   ingest:
-    tag: d4cc8b529825f65076810ba8fd54ef399fe26bb9
+    tag: 5a70bfb4bcc7832efcde982ffaed3ccb08348400
 # Non-sensitive runtime configuration, injected via ConfigMap.
 # Values match docker-compose env vars so the same image works in both environments.
 config:
@@ -23,7 +23,7 @@ config:
   fetchBaseUrl: http://fetch:8002
 # DATABASE_URL is sensitive and is NOT stored here.
 # It is injected from a k8s Secret named `task-manager-db` (key: DATABASE_URL).
-# The secret is created by `ansible/kind-up.yml` and never committed to git.
+# The secret is created by `ops/ansible/kind-up.yml` and never committed to git.
 api:
   replicas: 1
   port: 8000
