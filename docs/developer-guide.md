@@ -1,12 +1,13 @@
 # Developer Guide
 
-## Quick Reference
+> For a one-screen command reference run `bash help.sh`.
 
-For a one-screen summary of all commands without reading this document:
+## Contents
 
-```bash
-bash help.sh
-```
+- [Two ways to run locally](#two-ways-to-run-locally)
+- [Mode 1 — docker-compose](#mode-1--docker-compose)
+- [Mode 2 — Kind (local Kubernetes)](#mode-2--kind-local-kubernetes)
+- [CI/CD Pipeline](ci-cd.md)
 
 ## Two ways to run locally
 
@@ -18,7 +19,7 @@ bash help.sh
 | **Infra (postgres, kafka)** | docker-compose | docker-compose (shared — pods connect to the same containers) |
 | **Started with** | `docker compose up` | `ansible-playbook ops/ansible/kind-up.yml` |
 
-See [docs/port-mappings.md](port-mappings.md) for a full breakdown of host ports and network topology.
+See [port-mappings.md](port-mappings.md) for host port assignments and network topology.
 
 ---
 
@@ -27,28 +28,20 @@ See [docs/port-mappings.md](port-mappings.md) for a full breakdown of host ports
 Use this day-to-day during development. All three services run as Docker containers
 with live source mounts and hot reload.
 
-### Building images
-
-Rebuild after changing a `Dockerfile` or `pyproject.toml`:
-
 ```bash
-docker compose build          # all services
-docker compose build api      # single service
-```
-
-### Running the application
-
-```bash
-# Full stack (all services + infra)
+# Start full stack
 docker compose up
 
-# Infrastructure only — run services locally via uvicorn/python directly
+# Start infra only (run services locally via uvicorn/python directly)
 docker compose up postgres kafka
+
+# Rebuild after changing a Dockerfile or pyproject.toml
+docker compose build [api|ingest|fetch]
 
 # Shutdown
 docker compose down
 
-# Shutdown and wipe the database
+# Shutdown and wipe the database (destroys all data)
 docker compose down -v
 ```
 
@@ -72,11 +65,7 @@ KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
   python -m ingest.main
 ```
 
-### Running tests
-
-From VS Code, all tests are discoverable via the Test Explorer panel (beaker icon).
-
-From a terminal:
+**Tests** — discoverable via VS Code Test Explorer (beaker icon) or from a terminal:
 
 ```bash
 pytest                          # all services from repo root
@@ -85,39 +74,16 @@ cd services/ingest && pytest
 cd services/fetch  && pytest
 ```
 
-### curl examples
+**Schema changes** — the schema lives in `ops/infra/db/init.sql`. PostgreSQL only
+runs this script when the data volume is first created:
 
 ```bash
-# Create a task
-curl -s -X POST http://localhost:8000/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"title": "My first task", "description": "Do the thing", "status": "pending"}' | jq
-
-# List tasks (allow a moment for ingest to write to the DB)
-curl -s http://localhost:8000/tasks | jq
-
-# Get a specific task
-curl -s http://localhost:8000/tasks/<task_id> | jq
-
-# Update a task
-curl -s -X PUT http://localhost:8000/tasks/<task_id> \
-  -H "Content-Type: application/json" \
-  -d '{"status": "done"}' | jq
-
-# Delete a task
-curl -s -X DELETE http://localhost:8000/tasks/<task_id> | jq
+docker compose down -v && docker compose up   # Warning: destroys all data
 ```
 
-### Schema changes
+See [api-reference.md](api-reference.md) for endpoint reference and curl examples.
 
-The schema lives in `ops/infra/db/init.sql`. PostgreSQL only runs this script when the
-data volume is first created.
-
-```bash
-docker compose down -v && docker compose up
-```
-
-> **Warning:** `docker compose down -v` deletes all data.
+Verify with `docker compose ps` and `curl http://localhost:8000/health`.
 
 ---
 
@@ -125,28 +91,8 @@ docker compose down -v && docker compose up
 
 Use this to validate the full GitOps pipeline — images are pulled from GHCR,
 ArgoCD manages the rollout, and the app runs as it would in a real cluster.
-Postgres and Kafka are shared with docker-compose.
-
-### How GitOps works
-
-```
-merge to dev
-    │
-    ▼
-CI: build + push images to GHCR
-    │
-    ▼
-CI: commit updated SHA tags to gitops branch (ops/helm/task-manager/values.yaml)
-    │
-    ▼
-ArgoCD: detects gitops change, syncs Kind cluster
-    │
-    ▼
-Kind: rolls out new pods
-```
-
-ArgoCD watches the `gitops` branch, not `dev`. The `gitops` branch is written only
-by CI and is never edited by hand.
+Postgres and Kafka are shared with docker-compose. See [ci-cd.md](ci-cd.md) for
+how the pipeline works.
 
 ### Prerequisites (host machine — not inside devcontainer)
 
@@ -158,17 +104,17 @@ installed automatically by `ops/bootstrap.sh`.
 
 ### One-time setup
 
-**1. Start docker-compose infrastructure**
+**1.** Start docker-compose infrastructure:
 
 ```bash
 docker compose up postgres kafka
 ```
 
-**2. Verify `ops/argocd/application.yaml`** — `repoURL` is set to your repository URL.
+**2.** Verify `ops/argocd/application.yaml` — `repoURL` is set to your repository URL.
 
-**3. Verify `ops/helm/task-manager/values.yaml`** — `image.owner` is set to your GitHub username.
+**3.** Verify `ops/helm/task-manager/values.yaml` — `image.owner` is set to your GitHub username.
 
-**4. Initialise the gitops branch** (only needed once — CI manages it after this)
+**4.** Initialise the gitops branch (only needed once — CI manages it after this):
 
 ```bash
 git checkout --orphan gitops
@@ -181,15 +127,13 @@ git push origin gitops
 git checkout dev
 ```
 
-**5. Bootstrap tools and the cluster**
+**5.** Bootstrap tools and the cluster:
 
 ```bash
 bash ops/bootstrap.sh                                    # prompts for GitHub username
 bash ops/bootstrap.sh -e image_owner=<github-username>  # non-interactive
 ```
 
-The script installs Ansible if missing, runs `ops/ansible/dev-setup.yml` (tools +
-Galaxy collections), then runs `ops/ansible/kind-up.yml` (Kind cluster + ArgoCD).
 Both playbooks are idempotent — safe to re-run if anything fails midway.
 
 ### Accessing the cluster
@@ -208,6 +152,8 @@ kubectl get application -n argocd    # Synced / Healthy
 curl http://localhost:8080/health    # {"status":"ok"}
 ```
 
+Or run `bash ops/scripts/check-running.sh` for a full automated check.
+
 ### Tearing down
 
 ```bash
@@ -215,60 +161,3 @@ ansible-playbook ops/ansible/kind-down.yml
 ```
 
 docker-compose services are left running. Run `docker compose down` separately if needed.
-
----
-
-## Check scripts
-
-```bash
-bash ops/scripts/check-setup.sh     # tools, Docker daemon, Galaxy collections, Kind cluster
-bash ops/scripts/check-running.sh   # infra, pods, ArgoCD sync, API /health
-```
-
-`check-running.sh` targets Mode 2 (Kind). For Mode 1, use `docker compose ps` and
-`curl http://localhost:8000/health`.
-
----
-
-## CI Pipeline
-
-The workflow lives in `.github/workflows/ci.yml`:
-
-| Event | Jobs that run |
-|---|---|
-| PR opened / updated against `dev` | **test** (all three services) |
-| PR merged into `dev` | **test** → **build** (push images to GHCR) → **update-gitops** (pin SHA in ops/helm/values.yaml) |
-
-### Day-to-day developer workflow
-
-1. Branch off `dev`, make your changes, open a PR back to `dev`.
-2. The three test jobs run automatically. All must be green before the PR can be merged.
-3. On merge, production images are built and pushed to GHCR tagged with the commit SHA and a floating `dev` tag.
-
-### One-time repo setup (owner only)
-
-**1. Allow Actions to push packages**
-
-Settings → Actions → General → Workflow permissions → **Read and write permissions**
-
-**2. Protect the branch** (optional but recommended)
-
-Settings → Branches → Add rule for `dev`:
-- Enable **Require status checks to pass before merging**
-- Add checks: `Test api`, `Test fetch`, `Test ingest`
-
-**3. Make GHCR images public** (after the first merge triggers a build)
-
-Navigate to `github.com/<you>?tab=packages`, open each package, set visibility to
-**Public**. This avoids needing pull credentials in Kubernetes.
-
-### Published images
-
-```
-ghcr.io/<owner>/task-manager/api:<commit-sha>     # immutable — pinned by gitops branch
-ghcr.io/<owner>/task-manager/api:dev              # floating — latest merged build
-ghcr.io/<owner>/task-manager/fetch:<commit-sha>
-ghcr.io/<owner>/task-manager/fetch:dev
-ghcr.io/<owner>/task-manager/ingest:<commit-sha>
-ghcr.io/<owner>/task-manager/ingest:dev
-```

@@ -22,6 +22,10 @@ devcontainer is attached.
 | **8080** | api | Kind NodePort 30080 → `extraPortMappings` in kind-config.yaml | REST API |
 | **8443** | ArgoCD | On-demand `kubectl port-forward` | ArgoCD UI (HTTPS) |
 
+```bash
+kubectl port-forward svc/argocd-server -n argocd 8443:443
+```
+
 ## Network topology
 
 The two deployments run in separate network namespaces and do not interfere with
@@ -53,6 +57,43 @@ YOUR HOST MACHINE
             ingest pod  10.244.0.x  (no port)
             │
             └── NodePort 30080 on Kind node ──► host:8080
+```
+
+```mermaid
+flowchart TB
+    subgraph HOST["Host Machine"]
+        subgraph HOSTNET["localhost"]
+            P8000[":8000"]
+            P8080[":8080"]
+            P5432[":5432  (VS Code)"]
+            P9092[":9092  (VS Code)"]
+            P8443[":8443  (port-forward)"]
+        end
+
+        subgraph DCNET["docker-compose backend network  ·  172.x.x.x"]
+            api["api  :8000"]
+            fetch["fetch  :8002"]
+            postgres["postgres  :5432"]
+            kafka["kafka  :9092"]
+            ingest["ingest"]
+
+            subgraph KINDNODE["Kind node  (container)"]
+                NP["NodePort 30080"]
+                subgraph K8S["k8s pod network  10.244.x.x"]
+                    apipod["api pod  :8000"]
+                    fetchpod["fetch pod  :8002"]
+                    ingestpod["ingest pod"]
+                    argocd["ArgoCD  :443"]
+                end
+            end
+        end
+    end
+
+    P8000 --> api
+    P8080 --> NP --> apipod
+    P5432 --> postgres
+    P9092 --> kafka
+    P8443 --> argocd
 ```
 
 The internal ports (8000, 8002) appear in both namespaces but are fully isolated
