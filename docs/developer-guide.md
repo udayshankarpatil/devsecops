@@ -1,5 +1,13 @@
 # Developer Guide
 
+## Quick Reference
+
+For a one-screen summary of all commands without reading this document:
+
+```bash
+bash help.sh
+```
+
 ## Building Docker Images
 
 Rebuild after changing a `Dockerfile` or `pyproject.toml`:
@@ -134,6 +142,75 @@ ghcr.io/<owner>/task-manager/ingest:<commit-sha>
 ghcr.io/<owner>/task-manager/ingest:dev
 ```
 
+## Check Scripts
+
+Two scripts help you verify your local environment at a glance.
+
+### One-time setup check
+
+Confirms that all required tools are installed, the Docker daemon is running,
+Galaxy collections are present, and the Kind cluster exists.
+
+```bash
+bash scripts/check-setup.sh
+```
+
+Example output when everything is in order:
+```
+── Tools ────────────────────────────────────────────────────────────────
+  ✓  docker
+  ✓  ansible
+  ✓  kind
+  ✓  kubectl
+  ✓  helm
+  ✓  yq
+── Docker runtime ───────────────────────────────────────────────────────
+  ✓  Docker daemon running
+── Ansible Galaxy collections ───────────────────────────────────────────
+  ✓  kubernetes.core
+  ✓  community.general
+  ✓  community.docker
+── Kind cluster ─────────────────────────────────────────────────────────
+  ✓  cluster 'task-manager' exists
+  ✓  kubectl context 'kind-task-manager'
+  ✓  cluster reachable
+
+All 13 checks passed. Dev setup is complete.
+```
+
+If any checks fail, re-run `bash bootstrap.sh`.
+
+### Everyday application health check
+
+Confirms that the docker-compose infrastructure is up, all three pods are
+Running, ArgoCD has synced, and the API is responding.
+
+```bash
+bash scripts/check-running.sh
+```
+
+Example output:
+```
+── Infrastructure (docker-compose) ──────────────────────────────────────
+  ✓  postgres running
+  ✓  kafka running
+── Kind cluster ─────────────────────────────────────────────────────────
+  ✓  cluster reachable
+── Pods (namespace: task-manager) ───────────────────────────────────────
+  ✓  api pod Running
+  ✓  fetch pod Running
+  ✓  ingest pod Running
+── ArgoCD ───────────────────────────────────────────────────────────────
+  ✓  application Synced
+  ✓  application Healthy
+── API endpoint ─────────────────────────────────────────────────────────
+  ✓  GET /health → 200
+
+All 10 checks passed. Application is running.
+```
+
+---
+
 ## CD — Local Kubernetes with Kind and ArgoCD
 
 The CD setup runs the three app services in a local [Kind](https://kind.sigs.k8s.io/) (Kubernetes-in-Docker) cluster. Postgres and Kafka remain in docker-compose; the Kind node is connected to the same Docker network so pods can reach them by name without any config changes.
@@ -160,10 +237,11 @@ ArgoCD watches the `gitops` branch, not `dev`. The `gitops` branch is written on
 
 ### Prerequisites (host machine — not inside devcontainer)
 
-```bash
-brew install ansible kind kubectl helm yq
-ansible-galaxy collection install -r ansible/requirements.yml
-```
+- macOS with [Homebrew](https://brew.sh)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
+
+Everything else (Ansible, Kind, kubectl, Helm, yq, Galaxy collections) is
+installed automatically by `bootstrap.sh`.
 
 ### One-time setup
 
@@ -190,13 +268,28 @@ git push origin gitops
 git checkout dev
 ```
 
-**5. Bootstrap the cluster**
+**5. Bootstrap tools and the cluster**
 
 ```bash
-ansible-playbook ansible/kind-up.yml -e image_owner=<your-github-username>
+bash bootstrap.sh
 ```
 
-This is idempotent — safe to run again if anything fails midway.
+The script installs Ansible if missing, runs `ansible/dev-setup.yml` (tools +
+Galaxy collections), then runs `ansible/kind-up.yml` (Kind cluster + ArgoCD).
+It will prompt for your GitHub username if you don't pass it on the command line:
+
+```bash
+bash bootstrap.sh -e image_owner=<your-github-username>   # non-interactive
+```
+
+Both playbooks are idempotent — safe to run again if anything fails midway.
+
+**6. Verify**
+
+```bash
+bash scripts/check-setup.sh    # confirms tools and cluster are ready
+bash scripts/check-running.sh  # confirms pods and API are running
+```
 
 ### Accessing the cluster
 

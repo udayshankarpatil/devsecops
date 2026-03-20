@@ -46,6 +46,12 @@ Mutation endpoints return `202 Accepted` with `{"task_id": "..."}`. The DB write
 
 UUIDs are generated in `api` before publishing, so callers get an ID in the `202` response without polling.
 
+## Quick Reference
+
+```bash
+bash help.sh   # one-screen summary of all developer commands
+```
+
 ## Key Commands
 
 ```bash
@@ -121,11 +127,16 @@ ghcr.io/<owner>/task-manager/<service>:dev            # floating — latest merg
 The CD layer uses ArgoCD watching the `gitops` branch + a Kind cluster for local k8s:
 
 ```bash
-# Bootstrap local cluster (host machine, not devcontainer)
-ansible-playbook ansible/kind-up.yml -e image_owner=<github-username>
+# Bootstrap everything from scratch (host machine, not devcontainer)
+bash bootstrap.sh                                   # prompts for GitHub username
+bash bootstrap.sh -e image_owner=<github-username>  # non-interactive
 
-# Tear down
+# Tear down cluster
 ansible-playbook ansible/kind-down.yml
+
+# Verify setup / verify app is running
+bash scripts/check-setup.sh
+bash scripts/check-running.sh
 ```
 
 Playbooks are idempotent — safe to re-run. See `docs/developer-guide.md` for full CD setup instructions.

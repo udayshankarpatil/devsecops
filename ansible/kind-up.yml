@@ -19,7 +19,7 @@
 
   vars:
     cluster_name: task-manager
-    namespace: task-manager
+    app_namespace: task-manager
     argocd_namespace: argocd
     # Docker network created by docker-compose for the backend services.
     # Connecting the Kind node to this network lets pods reach postgres and kafka
@@ -40,7 +40,7 @@
       ansible.builtin.command: >
         kind create cluster
         --name {{ cluster_name }}
-        --config ansible/kind-config.yaml
+        --config {{ playbook_dir }}/kind-config.yaml
       when: cluster_name not in kind_clusters.stdout
 
     # ── Docker network bridging ───────────────────────────────────────────────
@@ -76,7 +76,7 @@
 
     - name: Create task-manager namespace
       kubernetes.core.k8s:
-        name: "{{ namespace }}"
+        name: "{{ app_namespace }}"
         api_version: v1
         kind: Namespace
         state: present
@@ -92,32 +92,35 @@
           kind: Secret
           metadata:
             name: task-manager-db
-            namespace: "{{ namespace }}"
+            namespace: "{{ app_namespace }}"
           stringData:
             DATABASE_URL: "{{ db_url }}"
 
     # ── ArgoCD ────────────────────────────────────────────────────────────────
 
     - name: Add ArgoCD Helm repository
-      kubernetes.core.helm_repository:
-        name: argo
-        repo_url: https://argoproj.github.io/argo-helm
+      ansible.builtin.command: helm repo add argo https://argoproj.github.io/argo-helm
+      changed_when: false
+
+    - name: Update Helm repositories
+      ansible.builtin.command: helm repo update
+      changed_when: false
 
     - name: Install ArgoCD
-      kubernetes.core.helm:
-        name: argocd
-        chart_ref: argo/argo-cd
-        release_namespace: "{{ argocd_namespace }}"
-        create_namespace: true
-        wait: true
-        wait_timeout: 5m
+      ansible.builtin.command: >
+        helm upgrade --install argocd argo/argo-cd
+        --namespace {{ argocd_namespace }}
+        --create-namespace
+        --wait
+        --timeout 5m
+      changed_when: false
 
     # ── ArgoCD Application ────────────────────────────────────────────────────
 
     - name: Apply ArgoCD Application manifest
       kubernetes.core.k8s:
         state: present
-        src: argocd/application.yaml
+        src: "{{ playbook_dir }}/../argocd/application.yaml"
 
     - name: Done
       ansible.builtin.debug:
