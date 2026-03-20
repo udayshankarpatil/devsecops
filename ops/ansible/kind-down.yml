@@ -4,7 +4,7 @@
 # docker-compose services (postgres, kafka) are left running.
 #
 # Usage:
-#   ansible-playbook ansible/kind-down.yml
+#   ansible-playbook ops/ansible/kind-down.yml
 
 - name: Tear down Kind cluster for task-manager
   hosts: localhost

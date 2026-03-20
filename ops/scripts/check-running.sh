@@ -6,7 +6,7 @@
 # Exit code 0 = all checks passed; 1 = one or more failed.
 #
 # Usage:
-#   bash scripts/check-running.sh
+#   bash ops/scripts/check-running.sh
 
 set -uo pipefail
 
@@ -61,7 +61,7 @@ else
     printf "%d of %d checks failed.\n" "$FAIL" "$TOTAL"
     printf "Tips:\n"
     printf "  Infrastructure not running? -> docker compose up postgres kafka\n"
-    printf "  Cluster not running?        -> ansible-playbook ansible/kind-up.yml\n"
+    printf "  Cluster not running?        -> ansible-playbook ops/ansible/kind-up.yml\n"
     printf "  Pods not ready yet?         -> kubectl get pods -n task-manager -w\n"
     printf "  ArgoCD not synced?          -> kubectl get application task-manager -n argocd\n"
     exit 1

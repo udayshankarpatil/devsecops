@@ -12,7 +12,7 @@ spec:
     # ArgoCD watches the gitops branch. CI commits updated image tags here
     # on every merge to dev; ArgoCD auto-syncs the cluster in response.
     targetRevision: gitops
-    path: helm/task-manager
+    path: ops/helm/task-manager
 
   destination:
     server: https://kubernetes.default.svc

@@ -4,11 +4,11 @@
 #
 # Prerequisites (host machine, not devcontainer):
 #   brew install ansible kind kubectl helm yq
-#   ansible-galaxy collection install -r ansible/requirements.yml
+#   ansible-galaxy collection install -r ops/ansible/requirements.yml
 #
 # Usage:
-#   ansible-playbook ansible/kind-up.yml
-#   ansible-playbook ansible/kind-up.yml -e image_owner=udayshankarpatil
+#   ansible-playbook ops/ansible/kind-up.yml
+#   ansible-playbook ops/ansible/kind-up.yml -e image_owner=<github-username>
 #
 # After completion the api is available at http://localhost:8080.
 

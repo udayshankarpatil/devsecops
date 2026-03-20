@@ -6,13 +6,13 @@
 # Prerequisites:
 #   - macOS with Homebrew (https://brew.sh)
 #   - Ansible: the only tool you need before running this playbook
-#     (bootstrap.sh installs it for you if missing)
+#     (ops/bootstrap.sh installs it for you if missing)
 #
 # Usage (direct):
-#   ansible-playbook ansible/dev-setup.yml
+#   ansible-playbook ops/ansible/dev-setup.yml
 #
-# Or let bootstrap.sh handle everything end-to-end, including cluster setup:
-#   bash bootstrap.sh
+# Or let ops/bootstrap.sh handle everything end-to-end, including cluster setup:
+#   bash ops/bootstrap.sh
 
 # ── Play 1: Galaxy collections ────────────────────────────────────────────────
 # Uses only ansible.builtin so it has no collection dependencies itself.
@@ -73,5 +73,5 @@
       ansible.builtin.debug:
         msg:
           - "All developer tools are installed."
-          - "Next: run 'ansible-playbook ansible/kind-up.yml' to bootstrap the Kind cluster,"
-          - "or run 'bash bootstrap.sh' which does both in one step."
+          - "Next: run 'ansible-playbook ops/ansible/kind-up.yml' to bootstrap the Kind cluster,"
+          - "or run 'bash ops/bootstrap.sh' which does both in one step."

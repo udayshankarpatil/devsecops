@@ -1,5 +1,5 @@
 ---
-# Install with: ansible-galaxy collection install -r ansible/requirements.yml
+# Install with: ansible-galaxy collection install -r ops/ansible/requirements.yml
 collections:
   - name: kubernetes.core    # k8s module; helm tasks use the CLI directly (Helm 4 compat)
     version: ">=5.0.0"

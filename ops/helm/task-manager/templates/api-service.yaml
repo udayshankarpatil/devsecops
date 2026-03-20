@@ -8,7 +8,7 @@ metadata:
     {{- include "task-manager.labels" . | nindent 4 }}
 spec:
   # NodePort so the api is reachable from the host via the Kind port mapping
-  # defined in ansible/kind-config.yaml (hostPort 8080 → nodePort 30080).
+  # defined in ops/ansible/kind-config.yaml (hostPort 8080 → nodePort 30080).
   type: NodePort
   selector:
     app: api

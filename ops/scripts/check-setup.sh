@@ -5,7 +5,7 @@
 # Exit code 0 = all checks passed; 1 = one or more failed.
 #
 # Usage:
-#   bash scripts/check-setup.sh
+#   bash ops/scripts/check-setup.sh
 
 set -uo pipefail
 
@@ -59,6 +59,6 @@ if [ "$FAIL" -eq 0 ]; then
     exit 0
 else
     printf "%d of %d checks failed.\n" "$FAIL" "$TOTAL"
-    printf "Run 'bash bootstrap.sh' to complete setup.\n"
+    printf "Run 'bash ops/bootstrap.sh' to complete setup.\n"
     exit 1
 fi

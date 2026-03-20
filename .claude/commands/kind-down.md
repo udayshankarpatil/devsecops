@@ -3,7 +3,7 @@ Tear down the local Kind cluster for task-manager.
 Run from the repo root (host machine — not inside the devcontainer):
 
 ```bash
-ansible-playbook ansible/kind-down.yml
+ansible-playbook ops/ansible/kind-down.yml
 ```
 
 The playbook is idempotent — safe to run when the cluster is already absent.

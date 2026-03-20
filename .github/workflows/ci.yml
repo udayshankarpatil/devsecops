@@ -143,9 +143,9 @@ jobs:
         run: |
           SHA="${{ github.sha }}"
 
-          # Snapshot the helm directory from the current dev commit before
+          # Snapshot ops/helm from the current dev commit before
           # switching branches (git checkout overwrites the working tree).
-          cp -r helm /tmp/helm-src
+          cp -r ops/helm /tmp/helm-src
 
           # Switch to the gitops branch, creating it as an orphan on first run.
           if git ls-remote --exit-code origin gitops > /dev/null 2>&1; then
@@ -156,16 +156,19 @@ jobs:
             git rm -rf . --quiet 2>/dev/null || true
           fi
 
-          # Sync the full helm directory from dev (picks up any template changes).
-          rm -rf helm
-          cp -r /tmp/helm-src helm
+          # Sync ops/helm from dev (picks up any template changes).
+          # Also removes the legacy helm/ root path if present from before the
+          # ops/ restructure, so the gitops branch stays clean after migration.
+          rm -rf ops/helm helm
+          mkdir -p ops
+          cp -r /tmp/helm-src ops/helm
 
           # Pin all three image tags to the merge SHA.
-          yq e ".images.api.tag = \"$SHA\""    -i helm/task-manager/values.yaml
-          yq e ".images.fetch.tag = \"$SHA\""  -i helm/task-manager/values.yaml
-          yq e ".images.ingest.tag = \"$SHA\"" -i helm/task-manager/values.yaml
+          yq e ".images.api.tag = \"$SHA\""    -i ops/helm/task-manager/values.yaml
+          yq e ".images.fetch.tag = \"$SHA\""  -i ops/helm/task-manager/values.yaml
+          yq e ".images.ingest.tag = \"$SHA\"" -i ops/helm/task-manager/values.yaml
 
-          git add helm/
+          git add -A
           # Skip the commit if nothing changed (e.g. re-run of same SHA)
           git diff --cached --quiet && echo "No changes — gitops branch already up to date." && exit 0
           git commit -m "ci: pin images to ${SHA::7}"

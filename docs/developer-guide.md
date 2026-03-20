@@ -16,7 +16,7 @@ bash help.sh
 | **Services run in** | Docker containers (bridge network) | Kubernetes pods (inside a Kind cluster) |
 | **API reachable at** | `http://localhost:8000` | `http://localhost:8080` |
 | **Infra (postgres, kafka)** | docker-compose | docker-compose (shared — pods connect to the same containers) |
-| **Started with** | `docker compose up` | `ansible-playbook ansible/kind-up.yml` |
+| **Started with** | `docker compose up` | `ansible-playbook ops/ansible/kind-up.yml` |
 
 See [docs/port-mappings.md](port-mappings.md) for a full breakdown of host ports and network topology.
 
@@ -110,7 +110,7 @@ curl -s -X DELETE http://localhost:8000/tasks/<task_id> | jq
 
 ### Schema changes
 
-The schema lives in `infra/db/init.sql`. PostgreSQL only runs this script when the
+The schema lives in `ops/infra/db/init.sql`. PostgreSQL only runs this script when the
 data volume is first created.
 
 ```bash
@@ -136,7 +136,7 @@ merge to dev
 CI: build + push images to GHCR
     │
     ▼
-CI: commit updated SHA tags to gitops branch (helm/task-manager/values.yaml)
+CI: commit updated SHA tags to gitops branch (ops/helm/task-manager/values.yaml)
     │
     ▼
 ArgoCD: detects gitops change, syncs Kind cluster
@@ -154,7 +154,7 @@ by CI and is never edited by hand.
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
 
 Everything else (Ansible, Kind, kubectl, Helm, yq, Galaxy collections) is
-installed automatically by `bootstrap.sh`.
+installed automatically by `ops/bootstrap.sh`.
 
 ### One-time setup
 
@@ -164,18 +164,18 @@ installed automatically by `bootstrap.sh`.
 docker compose up postgres kafka
 ```
 
-**2. Verify `argocd/application.yaml`** — `repoURL` is set to your repository URL.
+**2. Verify `ops/argocd/application.yaml`** — `repoURL` is set to your repository URL.
 
-**3. Verify `helm/task-manager/values.yaml`** — `image.owner` is set to your GitHub username.
+**3. Verify `ops/helm/task-manager/values.yaml`** — `image.owner` is set to your GitHub username.
 
 **4. Initialise the gitops branch** (only needed once — CI manages it after this)
 
 ```bash
 git checkout --orphan gitops
 git rm -rf .
-mkdir -p helm
-cp -r helm/task-manager helm/
-git add helm/
+mkdir -p ops/helm
+cp -r ops/helm/task-manager ops/helm/
+git add ops/helm/
 git commit -m "init: gitops branch"
 git push origin gitops
 git checkout dev
@@ -184,12 +184,12 @@ git checkout dev
 **5. Bootstrap tools and the cluster**
 
 ```bash
-bash bootstrap.sh                                    # prompts for GitHub username
-bash bootstrap.sh -e image_owner=<github-username>  # non-interactive
+bash ops/bootstrap.sh                                    # prompts for GitHub username
+bash ops/bootstrap.sh -e image_owner=<github-username>  # non-interactive
 ```
 
-The script installs Ansible if missing, runs `ansible/dev-setup.yml` (tools +
-Galaxy collections), then runs `ansible/kind-up.yml` (Kind cluster + ArgoCD).
+The script installs Ansible if missing, runs `ops/ansible/dev-setup.yml` (tools +
+Galaxy collections), then runs `ops/ansible/kind-up.yml` (Kind cluster + ArgoCD).
 Both playbooks are idempotent — safe to re-run if anything fails midway.
 
 ### Accessing the cluster
@@ -211,7 +211,7 @@ curl http://localhost:8080/health    # {"status":"ok"}
 ### Tearing down
 
 ```bash
-ansible-playbook ansible/kind-down.yml
+ansible-playbook ops/ansible/kind-down.yml
 ```
 
 docker-compose services are left running. Run `docker compose down` separately if needed.
@@ -221,8 +221,8 @@ docker-compose services are left running. Run `docker compose down` separately i
 ## Check scripts
 
 ```bash
-bash scripts/check-setup.sh     # tools, Docker daemon, Galaxy collections, Kind cluster
-bash scripts/check-running.sh   # infra, pods, ArgoCD sync, API /health
+bash ops/scripts/check-setup.sh     # tools, Docker daemon, Galaxy collections, Kind cluster
+bash ops/scripts/check-running.sh   # infra, pods, ArgoCD sync, API /health
 ```
 
 `check-running.sh` targets Mode 2 (Kind). For Mode 1, use `docker compose ps` and
@@ -237,7 +237,7 @@ The workflow lives in `.github/workflows/ci.yml`:
 | Event | Jobs that run |
 |---|---|
 | PR opened / updated against `dev` | **test** (all three services) |
-| PR merged into `dev` | **test** → **build** (push images to GHCR) → **update-gitops** (pin SHA in helm/values.yaml) |
+| PR merged into `dev` | **test** → **build** (push images to GHCR) → **update-gitops** (pin SHA in ops/helm/values.yaml) |
 
 ### Day-to-day developer workflow
 

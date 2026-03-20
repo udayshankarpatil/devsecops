@@ -3,12 +3,12 @@ Bootstrap the local Kind cluster for task-manager.
 Run from the repo root (host machine — not inside the devcontainer):
 
 ```bash
-ansible-playbook ansible/kind-up.yml
+ansible-playbook ops/ansible/kind-up.yml
 ```
 
 If the image owner hasn't been set in values.yaml yet, pass it explicitly:
 ```bash
-ansible-playbook ansible/kind-up.yml -e image_owner=<github-username>
+ansible-playbook ops/ansible/kind-up.yml -e image_owner=<github-username>
 ```
 
 The playbook is idempotent — safe to run again after a partial failure. It will:

@@ -26,7 +26,7 @@ config:
 
 # DATABASE_URL is sensitive and is NOT stored here.
 # It is injected from a k8s Secret named `task-manager-db` (key: DATABASE_URL).
-# The secret is created by `ansible/kind-up.yml` and never committed to git.
+# The secret is created by `ops/ansible/kind-up.yml` and never committed to git.
 
 api:
   replicas: 1

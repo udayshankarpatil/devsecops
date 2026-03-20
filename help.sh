@@ -9,12 +9,12 @@ cat <<'EOF'
 └─────────────────────────────────────────────────────────────────────────────┘
 
 ONE-TIME SETUP  (host machine, Docker Desktop must be running)
-  bash bootstrap.sh                          Install tools, bootstrap Kind cluster
-  bash bootstrap.sh -e image_owner=<user>    Non-interactive (skip prompt)
+  bash ops/bootstrap.sh                          Install tools, bootstrap Kind cluster
+  bash ops/bootstrap.sh -e image_owner=<user>    Non-interactive (skip prompt)
 
 HEALTH CHECKS
-  bash scripts/check-setup.sh                Tools installed & Kind cluster ready?
-  bash scripts/check-running.sh              Infra up, pods Running, API responding?
+  bash ops/scripts/check-setup.sh            Tools installed & Kind cluster ready?
+  bash ops/scripts/check-running.sh          Infra up, pods Running, API responding?
 
 ── MODE 1: docker-compose  (development) ────────────────────────────────────
   API: http://localhost:8000  ·  Swagger: http://localhost:8000/docs
@@ -29,8 +29,8 @@ HEALTH CHECKS
 ── MODE 2: Kind / Kubernetes  (GitOps) ──────────────────────────────────────
   API: http://localhost:8080  ·  ArgoCD: https://localhost:8443 (see below)
 
-  ansible-playbook ansible/kind-up.yml       Start Kind cluster + ArgoCD
-  ansible-playbook ansible/kind-down.yml     Tear down cluster
+  ansible-playbook ops/ansible/kind-up.yml   Start Kind cluster + ArgoCD
+  ansible-playbook ops/ansible/kind-down.yml Tear down cluster
   kubectl get pods -n task-manager           Pod status
   kubectl get application task-manager \
     -n argocd                                ArgoCD sync status

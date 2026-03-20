@@ -17,7 +17,7 @@ Client → api (REST, :8000) ──[Kafka: tasks]──► ingest (consumer) ─
 | `services/ingest/` | aiokafka consumer. Writes to PostgreSQL. No HTTP server. |
 | `services/fetch/` | FastAPI read-only API. asyncpg queries against PostgreSQL. |
 
-Infrastructure lives in `docker-compose.yml`. Schema is in `infra/db/init.sql`.
+Infrastructure lives in `docker-compose.yml`. Schema is in `ops/infra/db/init.sql`.
 
 ## Kafka Message Format
 
@@ -35,7 +35,7 @@ Infrastructure lives in `docker-compose.yml`. Schema is in `infra/db/init.sql`.
 
 ## Database
 
-- Schema: `infra/db/init.sql` (mounted into Postgres at first boot)
+- Schema: `ops/infra/db/init.sql` (mounted into Postgres at first boot)
 - No ORM — raw `asyncpg` throughout
 - No migrations yet — schema changes require `docker compose down -v`
 - `updated_at` is maintained automatically by a `BEFORE UPDATE` trigger in `init.sql`
@@ -61,7 +61,7 @@ conflicts. See `docs/port-mappings.md` for full host port and network topology d
 |---|---|---|
 | **Use for** | Active development, hot reload | Validating the GitOps/CD pipeline |
 | **API port** | `http://localhost:8000` | `http://localhost:8080` |
-| **Started with** | `docker compose up` | `ansible-playbook ansible/kind-up.yml` |
+| **Started with** | `docker compose up` | `ansible-playbook ops/ansible/kind-up.yml` |
 
 Postgres and Kafka always run in docker-compose. In Mode 2 the Kind node is
 connected to the same Docker network so pods reach them by service name.
@@ -91,15 +91,15 @@ docker compose logs -f [api|ingest|fetch|kafka|postgres]
 
 ```bash
 # Bootstrap everything from scratch (host machine, not devcontainer)
-bash bootstrap.sh                                   # prompts for GitHub username
-bash bootstrap.sh -e image_owner=<github-username>  # non-interactive
+bash ops/bootstrap.sh                                   # prompts for GitHub username
+bash ops/bootstrap.sh -e image_owner=<github-username>  # non-interactive
 
 # Tear down cluster
-ansible-playbook ansible/kind-down.yml
+ansible-playbook ops/ansible/kind-down.yml
 
 # Verify setup / verify app is running
-bash scripts/check-setup.sh
-bash scripts/check-running.sh
+bash ops/scripts/check-setup.sh
+bash ops/scripts/check-running.sh
 ```
 
 ### Tests

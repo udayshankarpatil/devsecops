@@ -81,30 +81,31 @@ devsecops/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml            # CI: tests on PR, build + push to GHCR on merge, update gitops branch
-├── ansible/                  # Idempotent playbooks for local cluster management
-│   ├── dev-setup.yml         # Install host-machine tools (Homebrew + Galaxy collections)
-│   ├── kind-config.yaml      # Kind cluster definition (NodePort mapping)
-│   ├── kind-up.yml           # Bootstrap Kind + ArgoCD + secrets
-│   ├── kind-down.yml         # Tear down the Kind cluster
-│   └── requirements.yml      # Ansible collection dependencies
-├── argocd/
-│   └── application.yaml      # ArgoCD Application — watches gitops branch
 ├── docs/                     # Extended documentation
 │   ├── developer-guide.md    # Full developer workflows (docker-compose and Kind)
 │   └── port-mappings.md      # Host port tables and network topology
-├── infra/
-│   └── db/
-│       └── init.sql          # PostgreSQL schema (tasks table + updated_at trigger)
-├── scripts/
-│   ├── check-setup.sh        # Verify one-time dev setup is complete
-│   └── check-running.sh      # Verify application is deployed and running
+├── ops/                      # All operational infrastructure (non-application code)
+│   ├── ansible/              # Idempotent playbooks for local environment management
+│   │   ├── dev-setup.yml     # Install host-machine tools (Homebrew + Galaxy collections)
+│   │   ├── kind-config.yaml  # Kind cluster definition (NodePort mapping)
+│   │   ├── kind-up.yml       # Bootstrap Kind + ArgoCD + secrets
+│   │   ├── kind-down.yml     # Tear down the Kind cluster
+│   │   └── requirements.yml  # Ansible collection dependencies
+│   ├── argocd/
+│   │   └── application.yaml  # ArgoCD Application — watches gitops branch
+│   ├── helm/
+│   │   └── task-manager/     # Helm chart for k8s deployment (api, fetch, ingest)
+│   ├── infra/
+│   │   └── db/
+│   │       └── init.sql      # PostgreSQL schema (tasks table + updated_at trigger)
+│   └── scripts/
+│       ├── check-setup.sh    # Verify one-time dev setup is complete
+│       └── check-running.sh  # Verify application is deployed and running
 ├── services/
 │   ├── api/                  # Gateway: FastAPI REST API, Kafka producer, HTTP client to fetch
 │   ├── ingest/               # Ingestion: Kafka consumer, asyncpg writes to PostgreSQL
 │   └── fetch/                # Retrieval: FastAPI read-only API, asyncpg queries
-├── helm/
-│   └── task-manager/         # Helm chart for k8s deployment (api, fetch, ingest)
-├── bootstrap.sh              # One-command dev environment setup (tools + Kind cluster)
+│   └── bootstrap.sh          # One-command dev environment setup (tools + Kind cluster)
 ├── help.sh                   # Quick reference for all developer commands
 ├── CLAUDE.md                 # Project conventions and context for Claude Code
 ├── docker-compose.yml        # Full-stack orchestration (all services + Kafka + PostgreSQL)
@@ -158,7 +159,7 @@ API available at **`http://localhost:8000`** · Swagger UI at **`http://localhos
 Prerequisites: macOS with [Homebrew](https://brew.sh) and Docker Desktop running.
 
 ```bash
-bash bootstrap.sh   # installs tools, spins up Kind cluster + ArgoCD
+bash ops/bootstrap.sh   # installs tools, spins up Kind cluster + ArgoCD
 ```
 
 API available at **`http://localhost:8080`**
