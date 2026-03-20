@@ -1,7 +1,7 @@
 # `gitops` branch
 
-This branch is the GitOps deployment state for **task-manager**. It is managed
-exclusively by CI and should **never be edited by hand**.
+**DO NOT** edit code in this branch by hand.  This branch is the GitOps deployment state for **task-manager** and is managed
+exclusively by CI.
 
 ## What is here
 
@@ -27,10 +27,10 @@ On every merge to dev, the CI pipeline:
 3. Pins the three image tags to the new SHA
 4. Commits and pushes to this branch
 
-## How the deployment syncs
+## How it affects the local deployment
 
 ArgoCD watches this branch and syncs the local Kind cluster whenever it changes.
 
-## Where to find the source
+## Where to find the source code
 
 All application code and infrastructure lives on `main` and derived branch.
