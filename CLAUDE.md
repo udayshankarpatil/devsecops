@@ -52,7 +52,23 @@ UUIDs are generated in `api` before publishing, so callers get an ID in the `202
 bash help.sh   # one-screen summary of all developer commands
 ```
 
+## Local Deployment Modes
+
+There are two ways to run the application locally. They can coexist without port
+conflicts. See `docs/port-mappings.md` for full host port and network topology details.
+
+| | Mode 1: docker-compose | Mode 2: Kind (local Kubernetes) |
+|---|---|---|
+| **Use for** | Active development, hot reload | Validating the GitOps/CD pipeline |
+| **API port** | `http://localhost:8000` | `http://localhost:8080` |
+| **Started with** | `docker compose up` | `ansible-playbook ansible/kind-up.yml` |
+
+Postgres and Kafka always run in docker-compose. In Mode 2 the Kind node is
+connected to the same Docker network so pods reach them by service name.
+
 ## Key Commands
+
+### Mode 1 — docker-compose
 
 ```bash
 # Start everything
@@ -64,19 +80,38 @@ docker compose up postgres kafka
 # Build images
 docker compose build [api|ingest|fetch]
 
-# Run tests per service
-cd services/api && pytest
-cd services/ingest && pytest
-cd services/fetch && pytest
-
-# Run all tests from repo root (pytest.toml configures unified discovery)
-pytest
-
 # Reset database (destroys all data)
 docker compose down -v
 
 # Tail logs
 docker compose logs -f [api|ingest|fetch|kafka|postgres]
+```
+
+### Mode 2 — Kind
+
+```bash
+# Bootstrap everything from scratch (host machine, not devcontainer)
+bash bootstrap.sh                                   # prompts for GitHub username
+bash bootstrap.sh -e image_owner=<github-username>  # non-interactive
+
+# Tear down cluster
+ansible-playbook ansible/kind-down.yml
+
+# Verify setup / verify app is running
+bash scripts/check-setup.sh
+bash scripts/check-running.sh
+```
+
+### Tests
+
+```bash
+# Run all tests from repo root
+pytest
+
+# Per service
+cd services/api && pytest
+cd services/ingest && pytest
+cd services/fetch && pytest
 ```
 
 ## Dev Container
@@ -85,7 +120,7 @@ docker compose logs -f [api|ingest|fetch|kafka|postgres]
 - `postCreateCommand` installs all three services' deps in one pass with `-e` (editable install)
 - Dev container joins the same Docker network as infra services
 - `docker-compose.override.yml` is auto-loaded, selecting the `dev` build target and mounting live source trees for hot reload
-- Ports forwarded: `8000`, `8002`, `5432`, `9092`
+- Ports forwarded to host: `8000` (api), `8002` (fetch), `5432` (postgres), `9092` (kafka)
 
 ## Testing Approach
 
@@ -124,22 +159,7 @@ ghcr.io/<owner>/task-manager/<service>:dev            # floating — latest merg
 
 `GITHUB_TOKEN` is injected automatically; no secrets need to be created.
 
-The CD layer uses ArgoCD watching the `gitops` branch + a Kind cluster for local k8s:
-
-```bash
-# Bootstrap everything from scratch (host machine, not devcontainer)
-bash bootstrap.sh                                   # prompts for GitHub username
-bash bootstrap.sh -e image_owner=<github-username>  # non-interactive
-
-# Tear down cluster
-ansible-playbook ansible/kind-down.yml
-
-# Verify setup / verify app is running
-bash scripts/check-setup.sh
-bash scripts/check-running.sh
-```
-
-Playbooks are idempotent — safe to re-run. See `docs/developer-guide.md` for full CD setup instructions.
+The CD layer uses ArgoCD watching the `gitops` branch + a Kind cluster for local k8s (Mode 2 above). Playbooks are idempotent — safe to re-run. See `docs/developer-guide.md` for full setup instructions.
 
 ## Known Limitations (future work)
 

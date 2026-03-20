@@ -82,6 +82,7 @@ devsecops/
 │   └── workflows/
 │       └── ci.yml            # CI: tests on PR, build + push to GHCR on merge, update gitops branch
 ├── ansible/                  # Idempotent playbooks for local cluster management
+│   ├── dev-setup.yml         # Install host-machine tools (Homebrew + Galaxy collections)
 │   ├── kind-config.yaml      # Kind cluster definition (NodePort mapping)
 │   ├── kind-up.yml           # Bootstrap Kind + ArgoCD + secrets
 │   ├── kind-down.yml         # Tear down the Kind cluster
@@ -89,15 +90,22 @@ devsecops/
 ├── argocd/
 │   └── application.yaml      # ArgoCD Application — watches gitops branch
 ├── docs/                     # Extended documentation
+│   ├── developer-guide.md    # Full developer workflows (docker-compose and Kind)
+│   └── port-mappings.md      # Host port tables and network topology
 ├── infra/
 │   └── db/
 │       └── init.sql          # PostgreSQL schema (tasks table + updated_at trigger)
+├── scripts/
+│   ├── check-setup.sh        # Verify one-time dev setup is complete
+│   └── check-running.sh      # Verify application is deployed and running
 ├── services/
 │   ├── api/                  # Gateway: FastAPI REST API, Kafka producer, HTTP client to fetch
 │   ├── ingest/               # Ingestion: Kafka consumer, asyncpg writes to PostgreSQL
 │   └── fetch/                # Retrieval: FastAPI read-only API, asyncpg queries
 ├── helm/
 │   └── task-manager/         # Helm chart for k8s deployment (api, fetch, ingest)
+├── bootstrap.sh              # One-command dev environment setup (tools + Kind cluster)
+├── help.sh                   # Quick reference for all developer commands
 ├── CLAUDE.md                 # Project conventions and context for Claude Code
 ├── docker-compose.yml        # Full-stack orchestration (all services + Kafka + PostgreSQL)
 ├── docker-compose.override.yml  # Dev overrides: live-reload targets and source volume mounts
@@ -130,25 +138,32 @@ service-name/
 | Cluster automation | Ansible |
 | Development | VS Code Dev Containers |
 
-## Developer Guide
+## Running Locally
 
-### Prerequisites
+There are two ways to run the application locally. See [docs/port-mappings.md](docs/port-mappings.md) for host port assignments and network topology.
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose v2)
-- [VS Code](https://code.visualstudio.com/) with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+### Mode 1 — docker-compose (development)
 
-### Local Dev Setup
+Prerequisites: [Docker Desktop](https://www.docker.com/products/docker-desktop/) and [VS Code](https://code.visualstudio.com/) with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers).
 
 1. Clone the repo and open it in VS Code.
-2. When prompted, click **Reopen in Container** — or run **Dev Containers: Reopen in Container** from the command palette (`⇧⌘P`).
-3. VS Code builds the dev container and starts all infrastructure (Kafka, PostgreSQL) automatically. The `postCreateCommand` installs all Python dependencies — no virtual environment is used.
-4. The following ports are forwarded to your host:
+2. When prompted, click **Reopen in Container** (or run **Dev Containers: Reopen in Container** from `⇧⌘P`).
+3. VS Code builds the dev container and starts Kafka and PostgreSQL automatically.
+4. Run `docker compose up` to start all three services.
 
-| Port | Service | Purpose |
-|---|---|---|
-| 8000 | api | REST API and Swagger UI |
-| 8002 | fetch | Internal read service (also accessible from host) |
-| 5432 | postgres | PostgreSQL database |
-| 9092 | kafka | Kafka broker |
+API available at **`http://localhost:8000`** · Swagger UI at **`http://localhost:8000/docs`**
 
-For detailed workflows see [docs/developer-guide.md](docs/developer-guide.md).
+### Mode 2 — Kind / Kubernetes (GitOps)
+
+Prerequisites: macOS with [Homebrew](https://brew.sh) and Docker Desktop running.
+
+```bash
+bash bootstrap.sh   # installs tools, spins up Kind cluster + ArgoCD
+```
+
+API available at **`http://localhost:8080`**
+
+Use this mode to validate the full CI/CD pipeline — images are pulled from GHCR
+and ArgoCD manages the rollout exactly as it would in a real cluster.
+
+For full setup instructions and day-to-day workflows see [docs/developer-guide.md](docs/developer-guide.md).

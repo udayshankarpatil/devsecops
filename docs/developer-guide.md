@@ -8,33 +8,52 @@ For a one-screen summary of all commands without reading this document:
 bash help.sh
 ```
 
-## Building Docker Images
+## Two ways to run locally
+
+| | Mode 1: docker-compose | Mode 2: Kind (local Kubernetes) |
+|---|---|---|
+| **Purpose** | Active development — hot reload, easy log tailing | Test the full GitOps/CD pipeline end-to-end |
+| **Services run in** | Docker containers (bridge network) | Kubernetes pods (inside a Kind cluster) |
+| **API reachable at** | `http://localhost:8000` | `http://localhost:8080` |
+| **Infra (postgres, kafka)** | docker-compose | docker-compose (shared — pods connect to the same containers) |
+| **Started with** | `docker compose up` | `ansible-playbook ansible/kind-up.yml` |
+
+See [docs/port-mappings.md](port-mappings.md) for a full breakdown of host ports and network topology.
+
+---
+
+## Mode 1 — docker-compose
+
+Use this day-to-day during development. All three services run as Docker containers
+with live source mounts and hot reload.
+
+### Building images
 
 Rebuild after changing a `Dockerfile` or `pyproject.toml`:
 
 ```bash
-# Rebuild all services
-docker compose build
-
-# Rebuild a single service
-docker compose build api
+docker compose build          # all services
+docker compose build api      # single service
 ```
 
-## Running the Application
-
+### Running the application
 
 ```bash
-# Full stack
+# Full stack (all services + infra)
 docker compose up
 
-# Infrastructure only (run services locally during development):
+# Infrastructure only — run services locally via uvicorn/python directly
 docker compose up postgres kafka
 
 # Shutdown
 docker compose down
+
+# Shutdown and wipe the database
+docker compose down -v
 ```
 
 **Run a service locally** (from within the dev container or with deps installed):
+
 ```bash
 # api
 cd services/api
@@ -53,25 +72,20 @@ KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
   python -m ingest.main
 ```
 
-## Running Tests
+### Running tests
 
-From VS Code, all tests across all three services are discoverable and runnable via the Test Explorer panel (the beaker icon). Tests can be run individually, by service, or all at once.
+From VS Code, all tests are discoverable via the Test Explorer panel (beaker icon).
 
-From a terminal inside the dev container:
-
-```bash
-(cd services/api && pytest -v) && (cd services/ingest && pytest -v) && (cd services/fetch && pytest -v)
-```
-
-Or per service:
+From a terminal:
 
 ```bash
-cd services/api && pytest
+pytest                          # all services from repo root
+cd services/api    && pytest    # single service
 cd services/ingest && pytest
-cd services/fetch && pytest
+cd services/fetch  && pytest
 ```
 
-## curl examples
+### curl examples
 
 ```bash
 # Create a task
@@ -94,126 +108,24 @@ curl -s -X PUT http://localhost:8000/tasks/<task_id> \
 curl -s -X DELETE http://localhost:8000/tasks/<task_id> | jq
 ```
 
-## CI Pipeline
+### Schema changes
 
-The workflow lives in `.github/workflows/ci.yml` and has two jobs:
-
-| Event | Jobs that run |
-|---|---|
-| PR opened / updated against `dev` | **test** (all three services) |
-| PR merged into `dev` | **test** → **build** (push images to GHCR) → **update-gitops** (pin SHA in helm/values.yaml) |
-
-### Day-to-day developer workflow
-
-1. Branch off `dev`, make your changes, open a PR back to `dev`.
-2. The three test jobs run automatically. All must be green before the PR can be merged (if branch protection is configured — see below).
-3. On merge, production images are built and pushed to GHCR tagged with the commit SHA and a floating `dev` tag.
-
-### One-time repo setup (owner only)
-
-**1. Allow Actions to push packages**
-
-Settings → Actions → General → Workflow permissions → **Read and write permissions**
-
-**2. Protect the branch** (optional but recommended)
-
-Settings → Branches → Add rule for `dev`:
-- Enable **Require status checks to pass before merging**
-- Add checks: `Test api`, `Test fetch`, `Test ingest`
-
-**3. Make GHCR images public** (after the first merge triggers a build)
-
-Navigate to `github.com/<you>?tab=packages`, open each of the three packages, and set visibility to **Public**. This avoids needing pull credentials in Kubernetes later.
-
-### GITHUB_TOKEN
-
-No secret creation is needed. GitHub injects `GITHUB_TOKEN` into every workflow run automatically. The `packages: write` permission declared in the build job is sufficient for pushing to GHCR.
-
-### Published images
-
-After each merge into `dev`:
-
-```sh
-ghcr.io/<owner>/task-manager/api:<commit-sha>     # immutable — use this for deployments
-ghcr.io/<owner>/task-manager/api:dev              # floating — always points to latest merge
-ghcr.io/<owner>/task-manager/fetch:<commit-sha>
-ghcr.io/<owner>/task-manager/fetch:dev
-ghcr.io/<owner>/task-manager/ingest:<commit-sha>
-ghcr.io/<owner>/task-manager/ingest:dev
-```
-
-## Check Scripts
-
-Two scripts help you verify your local environment at a glance.
-
-### One-time setup check
-
-Confirms that all required tools are installed, the Docker daemon is running,
-Galaxy collections are present, and the Kind cluster exists.
+The schema lives in `infra/db/init.sql`. PostgreSQL only runs this script when the
+data volume is first created.
 
 ```bash
-bash scripts/check-setup.sh
+docker compose down -v && docker compose up
 ```
 
-Example output when everything is in order:
-```
-── Tools ────────────────────────────────────────────────────────────────
-  ✓  docker
-  ✓  ansible
-  ✓  kind
-  ✓  kubectl
-  ✓  helm
-  ✓  yq
-── Docker runtime ───────────────────────────────────────────────────────
-  ✓  Docker daemon running
-── Ansible Galaxy collections ───────────────────────────────────────────
-  ✓  kubernetes.core
-  ✓  community.general
-  ✓  community.docker
-── Kind cluster ─────────────────────────────────────────────────────────
-  ✓  cluster 'task-manager' exists
-  ✓  kubectl context 'kind-task-manager'
-  ✓  cluster reachable
-
-All 13 checks passed. Dev setup is complete.
-```
-
-If any checks fail, re-run `bash bootstrap.sh`.
-
-### Everyday application health check
-
-Confirms that the docker-compose infrastructure is up, all three pods are
-Running, ArgoCD has synced, and the API is responding.
-
-```bash
-bash scripts/check-running.sh
-```
-
-Example output:
-```
-── Infrastructure (docker-compose) ──────────────────────────────────────
-  ✓  postgres running
-  ✓  kafka running
-── Kind cluster ─────────────────────────────────────────────────────────
-  ✓  cluster reachable
-── Pods (namespace: task-manager) ───────────────────────────────────────
-  ✓  api pod Running
-  ✓  fetch pod Running
-  ✓  ingest pod Running
-── ArgoCD ───────────────────────────────────────────────────────────────
-  ✓  application Synced
-  ✓  application Healthy
-── API endpoint ─────────────────────────────────────────────────────────
-  ✓  GET /health → 200
-
-All 10 checks passed. Application is running.
-```
+> **Warning:** `docker compose down -v` deletes all data.
 
 ---
 
-## CD — Local Kubernetes with Kind and ArgoCD
+## Mode 2 — Kind (local Kubernetes)
 
-The CD setup runs the three app services in a local [Kind](https://kind.sigs.k8s.io/) (Kubernetes-in-Docker) cluster. Postgres and Kafka remain in docker-compose; the Kind node is connected to the same Docker network so pods can reach them by name without any config changes.
+Use this to validate the full GitOps pipeline — images are pulled from GHCR,
+ArgoCD manages the rollout, and the app runs as it would in a real cluster.
+Postgres and Kafka are shared with docker-compose.
 
 ### How GitOps works
 
@@ -233,7 +145,8 @@ ArgoCD: detects gitops change, syncs Kind cluster
 Kind: rolls out new pods
 ```
 
-ArgoCD watches the `gitops` branch, not `dev`. The `gitops` branch is written only by CI and is never edited by hand.
+ArgoCD watches the `gitops` branch, not `dev`. The `gitops` branch is written only
+by CI and is never edited by hand.
 
 ### Prerequisites (host machine — not inside devcontainer)
 
@@ -251,9 +164,9 @@ installed automatically by `bootstrap.sh`.
 docker compose up postgres kafka
 ```
 
-**2. Verify `argocd/application.yaml`** — `repoURL` is set to `https://github.com/udayshankarpatil/devsecops.git`.
+**2. Verify `argocd/application.yaml`** — `repoURL` is set to your repository URL.
 
-**3. Verify `helm/task-manager/values.yaml`** — `image.owner` is set to `udayshankarpatil`.
+**3. Verify `helm/task-manager/values.yaml`** — `image.owner` is set to your GitHub username.
 
 **4. Initialise the gitops branch** (only needed once — CI manages it after this)
 
@@ -261,7 +174,7 @@ docker compose up postgres kafka
 git checkout --orphan gitops
 git rm -rf .
 mkdir -p helm
-cp -r helm/task-manager helm/   # copy chart from dev branch first
+cp -r helm/task-manager helm/
 git add helm/
 git commit -m "init: gitops branch"
 git push origin gitops
@@ -271,33 +184,29 @@ git checkout dev
 **5. Bootstrap tools and the cluster**
 
 ```bash
-bash bootstrap.sh
+bash bootstrap.sh                                    # prompts for GitHub username
+bash bootstrap.sh -e image_owner=<github-username>  # non-interactive
 ```
 
 The script installs Ansible if missing, runs `ansible/dev-setup.yml` (tools +
 Galaxy collections), then runs `ansible/kind-up.yml` (Kind cluster + ArgoCD).
-It will prompt for your GitHub username if you don't pass it on the command line:
-
-```bash
-bash bootstrap.sh -e image_owner=<your-github-username>   # non-interactive
-```
-
-Both playbooks are idempotent — safe to run again if anything fails midway.
-
-**6. Verify**
-
-```bash
-bash scripts/check-setup.sh    # confirms tools and cluster are ready
-bash scripts/check-running.sh  # confirms pods and API are running
-```
+Both playbooks are idempotent — safe to re-run if anything fails midway.
 
 ### Accessing the cluster
 
 | What | How |
 |---|---|
-| API (via Kind NodePort) | `http://localhost:8080` |
+| API | `http://localhost:8080` |
 | ArgoCD UI | `kubectl port-forward svc/argocd-server -n argocd 8443:443` → `https://localhost:8443` |
 | ArgoCD initial password | `kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' \| base64 -d` |
+
+### Verifying a deployment
+
+```bash
+kubectl get pods -n task-manager     # all three pods Running
+kubectl get application -n argocd    # Synced / Healthy
+curl http://localhost:8080/health    # {"status":"ok"}
+```
 
 ### Tearing down
 
@@ -307,26 +216,59 @@ ansible-playbook ansible/kind-down.yml
 
 docker-compose services are left running. Run `docker compose down` separately if needed.
 
-### Verifying a deployment
+---
 
-After a merge triggers CI and ArgoCD syncs:
+## Check scripts
 
 ```bash
-kubectl get pods -n task-manager          # all three pods Running
-kubectl get application -n argocd         # Synced / Healthy
-curl http://localhost:8080/health         # {"status":"ok"} from api pod
+bash scripts/check-setup.sh     # tools, Docker daemon, Galaxy collections, Kind cluster
+bash scripts/check-running.sh   # infra, pods, ArgoCD sync, API /health
 ```
 
-## Schema Changes
+`check-running.sh` targets Mode 2 (Kind). For Mode 1, use `docker compose ps` and
+`curl http://localhost:8000/health`.
 
-The database schema lives in `infra/db/init.sql`. PostgreSQL only runs this script when the data volume is first created.
+---
 
-To apply schema changes during development:
+## CI Pipeline
 
-1. Edit `infra/db/init.sql`.
-2. Destroy the data volume and restart:
-   ```bash
-   docker compose down -v && docker compose up
-   ```
+The workflow lives in `.github/workflows/ci.yml`:
 
-> **Warning:** `docker compose down -v` deletes all data. Never run this against an environment with data you need to keep.
+| Event | Jobs that run |
+|---|---|
+| PR opened / updated against `dev` | **test** (all three services) |
+| PR merged into `dev` | **test** → **build** (push images to GHCR) → **update-gitops** (pin SHA in helm/values.yaml) |
+
+### Day-to-day developer workflow
+
+1. Branch off `dev`, make your changes, open a PR back to `dev`.
+2. The three test jobs run automatically. All must be green before the PR can be merged.
+3. On merge, production images are built and pushed to GHCR tagged with the commit SHA and a floating `dev` tag.
+
+### One-time repo setup (owner only)
+
+**1. Allow Actions to push packages**
+
+Settings → Actions → General → Workflow permissions → **Read and write permissions**
+
+**2. Protect the branch** (optional but recommended)
+
+Settings → Branches → Add rule for `dev`:
+- Enable **Require status checks to pass before merging**
+- Add checks: `Test api`, `Test fetch`, `Test ingest`
+
+**3. Make GHCR images public** (after the first merge triggers a build)
+
+Navigate to `github.com/<you>?tab=packages`, open each package, set visibility to
+**Public**. This avoids needing pull credentials in Kubernetes.
+
+### Published images
+
+```
+ghcr.io/<owner>/task-manager/api:<commit-sha>     # immutable — pinned by gitops branch
+ghcr.io/<owner>/task-manager/api:dev              # floating — latest merged build
+ghcr.io/<owner>/task-manager/fetch:<commit-sha>
+ghcr.io/<owner>/task-manager/fetch:dev
+ghcr.io/<owner>/task-manager/ingest:<commit-sha>
+ghcr.io/<owner>/task-manager/ingest:dev
+```
