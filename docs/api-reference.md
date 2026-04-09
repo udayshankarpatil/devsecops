@@ -1,19 +1,32 @@
+[← README](../README.md)
+
 # API Reference
 
-All public endpoints are on **api** at `http://localhost:8000`.
+The Task Manager exposes a REST API through the **api** service.
 
-| Method | Path | Description | Response |
+| Mode | Base URL | Interactive docs |
+|---|---|---|
+| Docker Compose (Mode 1) | `http://localhost:8000` | `http://localhost:8000/docs` |
+| Kind / Kubernetes (Mode 2) | `http://localhost:8080` | `http://localhost:8080/docs` |
+
+> **Write behaviour:** `POST`, `PUT`, and `DELETE` return `202 Accepted` immediately — the database write is asynchronous (via Kafka). The response includes a `task_id` you can use straight away, but allow a brief moment before the change appears in read responses.
+
+## Endpoints
+
+| Method | Path | Description | Success response |
 |---|---|---|---|
-| `POST` | `/tasks` | Create a task | `202 Accepted` · `{"task_id": "<uuid>"}` |
-| `GET` | `/tasks` | List all tasks | `200 OK` · array of task objects |
-| `GET` | `/tasks/{id}` | Get a task by ID | `200 OK` · task object · `404` if not found |
-| `PUT` | `/tasks/{id}` | Partial update (any field) | `202 Accepted` · `{"task_id": "<uuid>"}` |
-| `DELETE` | `/tasks/{id}` | Delete a task | `202 Accepted` · `{"task_id": "<uuid>"}` |
+| `GET` | `/health` | Service health check | `200` · `{"status":"ok"}` |
+| `POST` | `/tasks` | Create a task | `202` · `{"task_id": "<uuid>"}` |
+| `GET` | `/tasks` | List all tasks | `200` · array of task objects |
+| `GET` | `/tasks/{id}` | Get a task by ID | `200` · task object · `404` if not found |
+| `PUT` | `/tasks/{id}` | Partial update (any field) | `202` · `{"task_id": "<uuid>"}` |
+| `DELETE` | `/tasks/{id}` | Delete a task | `202` · `{"task_id": "<uuid>"}` |
 
-**Task object:**
+## Task object
+
 ```json
 {
-  "id": "uuid",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
   "title": "string",
   "description": "string | null",
   "status": "pending | in_progress | done",
@@ -22,41 +35,32 @@ All public endpoints are on **api** at `http://localhost:8000`.
 }
 ```
 
-> Write endpoints return `202 Accepted` because the database write is asynchronous (via Kafka). Allow a brief moment before a newly created or updated task appears in read responses.
-
 ## Swagger UI
 
-With the stack running, the API is self-documenting via FastAPI's built-in OpenAPI support:
+With the stack running, the API is self-documenting via FastAPI's built-in OpenAPI support. Swagger UI lets you explore endpoints, view schemas, and execute requests directly in the browser — no curl or Postman required.
 
-| URL | Description |
+| URL | |
 |---|---|
-| http://localhost:8000/docs | Swagger UI — interactive, try requests in the browser |
-| http://localhost:8000/redoc | ReDoc — alternative read-only documentation view |
-| http://localhost:8000/openapi.json | Raw OpenAPI schema (JSON) |
-
-Swagger UI lets you expand any endpoint, view its request/response schema, and execute requests directly — no curl or Postman needed.
+| `http://localhost:<port>/docs` | Swagger UI — interactive |
+| `http://localhost:<port>/redoc` | ReDoc — read-only |
+| `http://localhost:<port>/openapi.json` | Raw OpenAPI schema (JSON) |
 
 ## curl examples
 
-Replace `<port>` with `8000` (docker-compose) or `8080` (Kind).
-
 ```bash
+# Replace <port> with 8000 (Mode 1) or 8080 (Mode 2)
+
 # Create a task
 curl -s -X POST http://localhost:<port>/tasks \
   -H "Content-Type: application/json" \
-  -d '{"title": "My first task", "description": "Do the thing", "status": "pending"}' | jq
-
-# List tasks (allow a moment for ingest to write to the DB)
-curl -s http://localhost:<port>/tasks | jq
-
+  -d '{"title": "My first task", "description": "Do the thing", "status": "pending"}'
+# List all tasks (allow a moment after creating for the async write to complete)
+curl -s http://localhost:<port>/tasks
 # Get a specific task
-curl -s http://localhost:<port>/tasks/<task_id> | jq
-
-# Update a task
+curl -s http://localhost:<port>/tasks/<task_id>
+# Update a task (any subset of fields)
 curl -s -X PUT http://localhost:<port>/tasks/<task_id> \
   -H "Content-Type: application/json" \
-  -d '{"status": "done"}' | jq
-
+  -d '{"status": "done"}'
 # Delete a task
-curl -s -X DELETE http://localhost:<port>/tasks/<task_id> | jq
-```
+curl -s -X DELETE http://localhost:<port>/tasks/<task_id>```

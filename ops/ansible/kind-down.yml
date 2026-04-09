@@ -1,7 +1,7 @@
 ---
 # Tear down the local Kind cluster for task-manager.
 # Idempotent — safe to run when the cluster is already absent.
-# docker-compose services (postgres, kafka) are left running.
+# Docker Compose services (postgres, kafka) are left running.
 #
 # Usage:
 #   ansible-playbook ops/ansible/kind-down.yml

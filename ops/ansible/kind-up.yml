@@ -21,9 +21,9 @@
     cluster_name: task-manager
     app_namespace: task-manager
     argocd_namespace: argocd
-    # Docker network created by docker-compose for the backend services.
+    # Docker network created by Docker Compose for the backend services.
     # Connecting the Kind node to this network lets pods reach postgres and kafka
-    # by their docker-compose service names (no env var changes needed).
+    # by their Docker Compose service names (no env var changes needed).
     docker_network: devsecops_backend
     image_owner: udayshankarpatil
     db_url: postgresql://tasksuser:taskspass@postgres:5432/tasksdb
@@ -43,8 +43,18 @@
         --config {{ playbook_dir }}/kind-config.yaml
       when: cluster_name not in kind_clusters.stdout
 
+    # ── Ensure Docker Compose infra is running ───────────────────────────────
+    # The Kind node must join the devsecops_backend network; that network only
+    # exists while at least one Docker Compose service is running.
+
+    - name: Ensure postgres and kafka are running
+      ansible.builtin.command: docker compose up -d postgres kafka
+      args:
+        chdir: "{{ playbook_dir }}/../.."
+      changed_when: false
+
     # ── Docker network bridging ───────────────────────────────────────────────
-    # Connecting the Kind node container to the docker-compose backend network
+    # Connecting the Kind node container to the Docker Compose backend network
     # lets pods resolve `postgres` and `kafka` by name without changing env vars.
 
     - name: Get Kind node container name
@@ -53,14 +63,14 @@
       register: kind_node
       changed_when: false
 
-    - name: Check if Kind node is already on the docker-compose network
+    - name: Check if Kind node is already on the Docker Compose network
       ansible.builtin.command: >
         docker network inspect {{ docker_network }} --format "{{ '{{' }}json .Containers{{ '}}' }}"
       register: network_containers
       changed_when: false
       failed_when: false
 
-    - name: Connect Kind node to docker-compose backend network
+    - name: Connect Kind node to Docker Compose backend network
       ansible.builtin.command: docker network connect {{ docker_network }} {{ kind_node.stdout }}
       when:
         - kind_node.stdout != ""

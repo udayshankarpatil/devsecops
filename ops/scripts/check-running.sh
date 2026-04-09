@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # check-running.sh — verify the application is deployed and running locally.
 #
-# Checks docker-compose infrastructure, the Kind cluster, pod health, ArgoCD
+# Checks Docker Compose infrastructure, the Kind cluster, pod health, ArgoCD
 # sync status, and the API /health endpoint.
 # Exit code 0 = all checks passed; 1 = one or more failed.
 #
@@ -27,8 +27,8 @@ check() {
     fi
 }
 
-# ── Infrastructure (docker-compose) ───────────────────────────────────────────
-echo "── Infrastructure (docker-compose) ──────────────────────────────────────"
+# ── Infrastructure (Docker Compose) ───────────────────────────────────────────
+echo "── Infrastructure (Docker Compose) ──────────────────────────────────────"
 check "postgres running" "docker compose ps --status running 2>/dev/null | grep -q postgres"
 check "kafka running"    "docker compose ps --status running 2>/dev/null | grep -q kafka"
 

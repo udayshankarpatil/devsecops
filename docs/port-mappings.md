@@ -1,17 +1,19 @@
+[← README](../README.md)
+
 # Port Mappings
 
 ## Host port assignments
 
-### Mode 1 — docker-compose
+### Mode 1 — Docker Compose
 
 | Host port | Service | How exposed | Notes |
 |---|---|---|---|
-| **8000** | api | `ports:` bind in docker-compose.yml | REST API, Swagger UI |
+| **8000** | api | `ports:` bind in `docker-compose.yml` | REST API, Swagger UI |
 | **8002** | fetch | VS Code `forwardPorts` via devcontainer | Internal read service |
 | **5432** | postgres | VS Code `forwardPorts` via devcontainer | PostgreSQL |
 | **9092** | kafka | VS Code `forwardPorts` via devcontainer | Kafka broker |
 
-fetch, postgres, and kafka have no `ports:` binding in docker-compose — they are
+fetch, postgres, and kafka have no `ports:` binding in Docker Compose — they are
 internal to the `backend` network. VS Code tunnels them to your host while the
 devcontainer is attached.
 
@@ -30,18 +32,18 @@ kubectl port-forward svc/argocd-server -n argocd 8443:443
 
 The two deployments run in separate network namespaces and do not interfere with
 each other. Both can be running simultaneously without port conflicts on the host
-(api is reachable at `:8000` via docker-compose and `:8080` via Kind).
+(api is reachable at `:8000` via Docker Compose and `:8080` via Kind).
 
 ```
 YOUR HOST MACHINE
 ├── host network  (localhost)
-│     :8000  ──► docker-compose api
+│     :8000  ──► Docker Compose api
 │     :8080  ──► Kind api  (via NodePort 30080)
 │     :5432  ──► postgres  (VS Code forwardPorts)
 │     :9092  ──► kafka     (VS Code forwardPorts)
 │     :8443  ──► ArgoCD    (on-demand kubectl port-forward)
 │
-├── docker-compose  [devsecops_backend bridge network ~172.x.x.x]
+├── Docker Compose  [devsecops_backend bridge network ~172.x.x.x]
 │     api        172.x.0.2:8000
 │     fetch      172.x.0.3:8002
 │     postgres   172.x.0.4:5432
@@ -70,7 +72,7 @@ flowchart TB
             P8443[":8443  (port-forward)"]
         end
 
-        subgraph DCNET["docker-compose backend network  ·  172.x.x.x"]
+        subgraph DCNET["Docker Compose backend network  ·  172.x.x.x"]
             api["api  :8000"]
             fetch["fetch  :8002"]
             postgres["postgres  :5432"]
@@ -100,6 +102,6 @@ The internal ports (8000, 8002) appear in both namespaces but are fully isolated
 from each other — they are in different network namespaces and cannot clash.
 
 The Kind node is the only container bridged into both networks, intentionally:
-pods need to resolve `postgres` and `kafka` by their docker-compose service names
+pods need to resolve `postgres` and `kafka` by their Docker Compose service names
 without any configuration changes. Traffic flows one way only — pods reach out to
-docker-compose services, not the reverse.
+Docker Compose services, not the reverse.

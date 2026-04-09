@@ -63,18 +63,24 @@ port conflicts, but they are **not isolated** — Mode 2 reuses the same Postgre
 Kafka containers as Mode 1, so both modes share the same data. See `docs/port-mappings.md`
 for full host port and network topology details.
 
-| | Mode 1: docker-compose | Mode 2: Kind (local Kubernetes) |
+| | Mode 1: Docker Compose | Mode 2: Kind (local Kubernetes) |
 |---|---|---|
 | **Use for** | Active development, hot reload | Validating the GitOps/CD pipeline |
 | **API port** | `http://localhost:8000` | `http://localhost:8080` |
 | **Started with** | `docker compose up` | `ansible-playbook ops/ansible/kind-up.yml` |
 
-Postgres and Kafka always run in docker-compose. In Mode 2 the Kind node is
+Postgres and Kafka always run via Docker Compose. In Mode 2 the Kind node is
 connected to the same Docker network so pods reach them by service name.
 
 ## Key Commands
 
-### Mode 1 — docker-compose
+### Host setup (once per machine / once per clone)
+
+```bash
+bash ops/setup.sh
+```
+
+### Mode 1 — Docker Compose
 
 ```bash
 # Start everything
@@ -96,7 +102,7 @@ docker compose logs -f [api|ingest|fetch|kafka|postgres]
 ### Mode 2 — Kind
 
 ```bash
-# Bootstrap everything from scratch (host machine, not devcontainer)
+# Provision Kind cluster + ArgoCD — idempotent, re-run to recreate after kind-down
 bash ops/bootstrap.sh                                   # prompts for GitHub username
 bash ops/bootstrap.sh -e image_owner=<github-username>  # non-interactive
 
@@ -186,7 +192,7 @@ ghcr.io/<owner>/task-manager/<service>:dev            # floating — latest merg
 
 `GITHUB_TOKEN` is injected automatically; no secrets need to be created.
 
-The CD layer uses ArgoCD watching the `gitops` branch + a Kind cluster for local k8s (Mode 2 above). Playbooks are idempotent — safe to re-run. See `docs/ci-cd.md` for the full pipeline reference and `docs/developer-guide.md` for setup instructions.
+The CD layer uses ArgoCD watching the `gitops` branch + a Kind cluster for local k8s (Mode 2 above). Playbooks are idempotent — safe to re-run. See `docs/ci-cd.md` for the full pipeline reference and `docs/developer-guide.md` for one-time setup and day-to-day workflows.
 
 ## Known Limitations (future work)
 

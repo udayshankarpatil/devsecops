@@ -1,9 +1,10 @@
 # Task Manager
 
-A task management backend built as three cooperating Python microservices in a mono-repo.
+A task management REST API built as three cooperating Python microservices. 
 
-## Overview
+## Architecture
 
+Clients interact through a single API endpoint; writes are acknowledged immediately and processed asynchronously via Kafka, while reads are served directly from PostgreSQL.
 
 ```mermaid
 flowchart LR
@@ -28,36 +29,19 @@ flowchart LR
 
 | Service | Role | Port |
 |---|---|---|
-| **api** | REST gateway — accepts client requests, publishes Kafka events for writes, calls `fetch` for reads | 8000 |
+| **api** | Public REST gateway — accepts requests, publishes Kafka events for writes, proxies reads to `fetch` | 8000 |
 | **ingest** | Kafka consumer — processes task events and persists them to PostgreSQL | — |
-| **fetch** | Retrieval service — serves read queries directly from PostgreSQL | 8002 (internal) |
+| **fetch** | Internal read service — serves queries directly from PostgreSQL | 8002 (internal) |
 
+> **Write behaviour:** mutation endpoints (`POST`, `PUT`, `DELETE`) return `202 Accepted` immediately with a `task_id`. The database write happens asynchronously via Kafka, so a newly created task may not appear in read responses for a brief moment.
 
+## Documentation
 
-## API
-
-See [docs/api-reference.md](docs/api-reference.md) for all endpoints, request/response schemas, and Swagger UI links.
-
-## Running Locally
-
-Prerequisites: [Docker Desktop](https://www.docker.com/products/docker-desktop/) and [VS Code](https://code.visualstudio.com/) with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers).
-
-1. Clone the repo and open it in VS Code.
-2. When prompted, click **Reopen in Container** (or run **Dev Containers: Reopen in Container** from `⇧⌘P`).
-3. VS Code starts all six containers on a shared Docker network: `postgres`, `kafka`, `api`, `fetch`, `ingest`, and the dev container itself (the shell VS Code attaches to). All services are running by the time the window opens.
-
-API available at **`http://localhost:8000`** · Swagger UI at **`http://localhost:8000/docs`**
-
-> **How it fits together:** The dev container is not where the services run — it is a persistent shell container that VS Code attaches to for your terminal and editor. The three application services (`api`, `fetch`, `ingest`) run in their own containers with live source mounts, so code changes are reflected immediately without rebuilding. If you need to restart a stopped service or rebuild after a Dockerfile change, run `docker compose up` from a **host machine terminal** (iTerm, macOS Terminal, etc.) — not from the VS Code terminal, which runs inside the dev container and resolves paths incorrectly for volume mounts.
-
-For full setup instructions and day-to-day workflows see [docs/developer-guide.md](docs/developer-guide.md).
-
-## Further Reading
-
-| Document | Description |
+| | |
 |---|---|
-| [docs/api-reference.md](docs/api-reference.md) | Endpoint reference and Swagger UI |
-| [docs/ci-cd.md](docs/ci-cd.md) | CI/CD pipeline and GitOps workflow |
-| [docs/developer-guide.md](docs/developer-guide.md) | Full developer workflows for both deployment modes |
-| [docs/port-mappings.md](docs/port-mappings.md) | Host port assignments and network topology |
-| [docs/project-structure.md](docs/project-structure.md) | Repository layout and tech stack |
+| [API Reference](docs/api-reference.md) | Endpoints, schemas, Swagger UI, curl examples |
+| [Developer Guide](docs/developer-guide.md) | Environment setup, day-to-day workflows, local Kubernetes |
+| [CI/CD Reference](docs/ci-cd.md) | Pipeline jobs, security gates, GitOps workflow |
+| [Tech Stack](docs/tech-stack.md) | Languages, frameworks, and tooling |
+| [Project Structure](docs/project-structure.md) | Repository layout |
+| [Port Mappings](docs/port-mappings.md) | Host ports and network topology |

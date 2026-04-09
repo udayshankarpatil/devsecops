@@ -1,18 +1,17 @@
 ---
-# One-time developer environment setup.
-# Installs all host-machine dependencies needed to work on task-manager outside
-# the dev container: CLI tools (via Homebrew) and Ansible Galaxy collections.
+# Host machine setup for task-manager development.
+# Installs CLI tools (via Homebrew), Ansible Galaxy collections, and the
+# Gitleaks pre-commit hook. Run once per machine and once per fresh clone.
+#
+# Tools installed: kind, kubectl, helm, yq, pre-commit, hadolint, gitleaks, trivy
 #
 # Prerequisites:
 #   - macOS with Homebrew (https://brew.sh)
-#   - Ansible: the only tool you need before running this playbook
-#     (ops/bootstrap.sh installs it for you if missing)
+#   - Ansible installed: brew install ansible
 #
-# Usage (direct):
-#   ansible-playbook ops/ansible/dev-setup.yml
-#
-# Or let ops/bootstrap.sh handle everything end-to-end, including cluster setup:
-#   bash ops/bootstrap.sh
+# Usage:
+#   bash ops/setup.sh                          # recommended — handles Ansible check
+#   ansible-playbook ops/ansible/dev-setup.yml # direct (Ansible must already be installed)
 
 # ── Play 1: Galaxy collections ────────────────────────────────────────────────
 # Uses only ansible.builtin so it has no collection dependencies itself.
@@ -54,7 +53,7 @@
   tasks:
     - name: Install required CLI tools
       ansible.builtin.command:
-        cmd: brew install kind kubectl helm yq pre-commit
+        cmd: brew install kind kubectl helm yq pre-commit hadolint gitleaks trivy
       register: brew_install
       # A brew link conflict means the bottles are installed but not linked.
       # The follow-up task resolves this with --overwrite.
@@ -65,7 +64,7 @@
 
     - name: Re-link CLI tools (resolve brew link conflicts)
       ansible.builtin.command:
-        cmd: brew link --overwrite kind kubectl helm yq
+        cmd: brew link --overwrite kind kubectl helm yq hadolint gitleaks trivy
       when: brew_install.rc != 0
       changed_when: true
 
@@ -80,5 +79,4 @@
         msg:
           - "All developer tools are installed and pre-commit hooks are active."
           - "Gitleaks will now scan every commit for secrets automatically."
-          - "Next: run 'ansible-playbook ops/ansible/kind-up.yml' to bootstrap the Kind cluster,"
-          - "or run 'bash ops/bootstrap.sh' which does both in one step."
+          - "To use GitOps validation (Mode 2), run: bash ops/bootstrap.sh"

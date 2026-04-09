@@ -1,4 +1,8 @@
-# CI/CD Pipeline
+[← README](../README.md)
+
+# CI/CD Reference
+
+> **Audience:** this document is for developers and platform engineers working on the pipeline itself. If you just want to run the application locally, see the [Developer Guide](developer-guide.md).
 
 ## How GitOps works
 
@@ -47,7 +51,7 @@ All security jobs run in parallel with the test matrix on every PR and push. The
 | `sca` | pip-audit | Known CVEs in Python dependencies | Yes |
 | `lint-dockerfiles` | Hadolint | Dockerfile best-practice violations | Yes (errors only) |
 | `secrets-scan` | Gitleaks | Hardcoded secrets anywhere in git history | Yes |
-| `scan-configs` | Trivy (misconfig) | Helm / docker-compose misconfigurations | Yes (CRITICAL/HIGH) |
+| `scan-configs` | Trivy (misconfig) | Helm / Docker Compose misconfigurations | Yes (CRITICAL/HIGH) |
 | `scan-images` | Trivy (image) | OS + pip CVEs in built Docker images | Yes (CRITICAL/HIGH fixed) |
 | `sbom` | Syft (via anchore/sbom-action) | Generates SBOM artifact — non-blocking | No |
 
