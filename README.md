@@ -44,10 +44,11 @@ Prerequisites: [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
 1. Clone the repo and open it in VS Code.
 2. When prompted, click **Reopen in Container** (or run **Dev Containers: Reopen in Container** from `⇧⌘P`).
-3. VS Code builds the dev container and starts Kafka and PostgreSQL automatically.
-4. Run `docker compose up` to start all three services.
+3. VS Code starts all six containers on a shared Docker network: `postgres`, `kafka`, `api`, `fetch`, `ingest`, and the dev container itself (the shell VS Code attaches to). All services are running by the time the window opens.
 
 API available at **`http://localhost:8000`** · Swagger UI at **`http://localhost:8000/docs`**
+
+> **How it fits together:** The dev container is not where the services run — it is a persistent shell container that VS Code attaches to for your terminal and editor. The three application services (`api`, `fetch`, `ingest`) run in their own containers with live source mounts, so code changes are reflected immediately without rebuilding. If you need to restart a stopped service or rebuild after a Dockerfile change, run `docker compose up` from a **host machine terminal** (iTerm, macOS Terminal, etc.) — not from the VS Code terminal, which runs inside the dev container and resolves paths incorrectly for volume mounts.
 
 For full setup instructions and day-to-day workflows see [docs/developer-guide.md](docs/developer-guide.md).
 

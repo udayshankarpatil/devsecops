@@ -1,0 +1,10 @@
+# Trivy ignore file — CVEs and misconfiguration rules accepted as known risks.
+#
+# Format:
+#   <CVE-ID or rule-ID>  [expiry-date]  # justification
+#
+# Example:
+#   CVE-2023-12345 exp:2025-12-31  # No fix available upstream; mitigated by network policy
+#
+# Keep this file as short as possible. Every entry here is a deliberate
+# acceptance of risk and must be reviewed when the expiry date passes.

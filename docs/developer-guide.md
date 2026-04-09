@@ -2,6 +2,8 @@
 
 > For a one-screen command reference run `bash help.sh`.
 
+> **Terminal context:** `[host]` = macOS terminal (iTerm etc.) · `[dev]` = VS Code terminal (runs inside the dev container). Commands are labelled throughout this guide. `docker compose` commands must always be `[host]` — running them from VS Code resolves volume mount paths incorrectly.
+
 ## Contents
 
 - [Two ways to run locally](#two-ways-to-run-locally)
@@ -19,6 +21,8 @@
 | **Infra (postgres, kafka)** | docker-compose | docker-compose (shared — pods connect to the same containers) |
 | **Started with** | `docker compose up` | `ansible-playbook ops/ansible/kind-up.yml` |
 
+Both modes can run at the same time — the API ports don't conflict. However, they are **not isolated**: Mode 2 reuses the same Postgres and Kafka containers as Mode 1, so both modes share the same data. Tasks created via `localhost:8000` will appear at `localhost:8080` and vice versa.
+
 See [port-mappings.md](port-mappings.md) for host port assignments and network topology.
 
 ---
@@ -29,23 +33,15 @@ Use this day-to-day during development. All three services run as Docker contain
 with live source mounts and hot reload.
 
 ```bash
-# Start full stack
-docker compose up
-
-# Start infra only (run services locally via uvicorn/python directly)
-docker compose up postgres kafka
-
-# Rebuild after changing a Dockerfile or pyproject.toml
-docker compose build [api|ingest|fetch]
-
-# Shutdown
-docker compose down
-
-# Shutdown and wipe the database (destroys all data)
-docker compose down -v
+# [host]
+docker compose up                           # Start full stack
+docker compose up postgres kafka            # Start infra only
+docker compose build [api|ingest|fetch]     # Rebuild after Dockerfile/pyproject.toml change
+docker compose down                         # Shutdown
+docker compose down -v                      # Shutdown + wipe database (destructive)
 ```
 
-**Run a service locally** (from within the dev container or with deps installed):
+**Run a service locally** `[dev]`:
 
 ```bash
 # api
@@ -65,7 +61,7 @@ KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
   python -m ingest.main
 ```
 
-**Tests** — discoverable via VS Code Test Explorer (beaker icon) or from a terminal:
+**Tests** `[dev]` — also discoverable via VS Code Test Explorer (beaker icon):
 
 ```bash
 pytest                          # all services from repo root
@@ -74,7 +70,7 @@ cd services/ingest && pytest
 cd services/fetch  && pytest
 ```
 
-**Schema changes** — the schema lives in `ops/infra/db/init.sql`. PostgreSQL only
+**Schema changes** `[host]` — the schema lives in `ops/infra/db/init.sql`. PostgreSQL only
 runs this script when the data volume is first created:
 
 ```bash
@@ -94,7 +90,7 @@ ArgoCD manages the rollout, and the app runs as it would in a real cluster.
 Postgres and Kafka are shared with docker-compose. See [ci-cd.md](ci-cd.md) for
 how the pipeline works.
 
-### Prerequisites (host machine — not inside devcontainer)
+### Prerequisites `[host]`
 
 - macOS with [Homebrew](https://brew.sh)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
@@ -102,7 +98,7 @@ how the pipeline works.
 Everything else (Ansible, Kind, kubectl, Helm, yq, Galaxy collections) is
 installed automatically by `ops/bootstrap.sh`.
 
-### One-time setup
+### One-time setup `[host]`
 
 **1.** Start docker-compose infrastructure:
 
@@ -144,7 +140,7 @@ Both playbooks are idempotent — safe to re-run if anything fails midway.
 | ArgoCD UI | `kubectl port-forward svc/argocd-server -n argocd 8443:443` → `https://localhost:8443` |
 | ArgoCD initial password | `kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' \| base64 -d` |
 
-### Verifying a deployment
+### Verifying a deployment `[host]`
 
 ```bash
 kubectl get pods -n task-manager     # all three pods Running
@@ -154,7 +150,7 @@ curl http://localhost:8080/health    # {"status":"ok"}
 
 Or run `bash ops/scripts/check-running.sh` for a full automated check.
 
-### Tearing down
+### Tearing down `[host]`
 
 ```bash
 ansible-playbook ops/ansible/kind-down.yml

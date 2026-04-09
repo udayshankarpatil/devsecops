@@ -26,11 +26,18 @@
         "editor.formatOnSave": true,
         "[python]": {
           "editor.defaultFormatter": "ms-python.black-formatter"
+        },
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "/bin/bash",
+            "args": ["--login"]
+          }
         }
       }
     }
   },
-  "postCreateCommand": "cd services && pip install --no-cache-dir -e './api[dev]' -e './ingest[dev]' -e './fetch[dev]'",
+  "postCreateCommand": "cd services && pip install --no-cache-dir -e './api[dev]' -e './ingest[dev]' -e './fetch[dev]' && cd .. && pre-commit install",
   "remoteEnv": {
     "PATH": "${containerEnv:PATH}:/home/vscode/.local/bin"
   },

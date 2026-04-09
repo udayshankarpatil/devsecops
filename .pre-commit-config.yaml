@@ -1,0 +1,8 @@
+repos:
+  # Gitleaks: detect hardcoded secrets before they enter git history.
+  # Runs on every `git commit`. Install once per clone with:
+  #   pre-commit install
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks

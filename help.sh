@@ -8,15 +8,17 @@ cat <<'EOF'
 │  docs/developer-guide.md  ·  docs/port-mappings.md                          │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-ONE-TIME SETUP  (host machine, Docker Desktop must be running)
+  [host] = macOS terminal (iTerm etc.)    [dev] = VS Code terminal (dev container)
+
+ONE-TIME SETUP  [host]
   bash ops/bootstrap.sh                          Install tools, bootstrap Kind cluster
   bash ops/bootstrap.sh -e image_owner=<user>    Non-interactive (skip prompt)
 
-HEALTH CHECKS
+HEALTH CHECKS  [host]
   bash ops/scripts/check-setup.sh            Tools installed & Kind cluster ready?
   bash ops/scripts/check-running.sh          Infra up, pods Running, API responding?
 
-── MODE 1: docker-compose  (development) ────────────────────────────────────
+── MODE 1: docker-compose  (development)  [host] ────────────────────────────
   API: http://localhost:8000  ·  Swagger: http://localhost:8000/docs
 
   docker compose up                          Start all services + infra
@@ -26,7 +28,7 @@ HEALTH CHECKS
   docker compose build [api|ingest|fetch]    Rebuild images
   docker compose logs -f [api|ingest|fetch]  Tail service logs
 
-── MODE 2: Kind / Kubernetes  (GitOps) ──────────────────────────────────────
+── MODE 2: Kind / Kubernetes  (GitOps)  [host] ──────────────────────────────
   API: http://localhost:8080  ·  ArgoCD: https://localhost:8443 (see below)
 
   ansible-playbook ops/ansible/kind-up.yml   Start Kind cluster + ArgoCD
@@ -39,13 +41,44 @@ HEALTH CHECKS
 
 ─────────────────────────────────────────────────────────────────────────────
 
-TESTS  (run inside devcontainer or with deps installed)
+TESTS  [dev]
   pytest                                     All services (from repo root)
   cd services/api     && pytest              Single service
   cd services/ingest  && pytest
   cd services/fetch   && pytest
 
-API EXAMPLES  (replace <port> with 8000 for Mode 1, 8080 for Mode 2)
+── SECURITY SCANNING  (mirrors CI — run before pushing) ─────────────────────
+
+  SAST — Bandit  [dev]
+  cd services/api     && bandit -r src/ -ll -q
+  cd services/fetch   && bandit -r src/ -ll -q
+  cd services/ingest  && bandit -r src/ -ll -q
+
+  SCA — pip-audit  [dev]
+  cd services/api     && pip-audit
+  cd services/fetch   && pip-audit
+  cd services/ingest  && pip-audit
+
+  Dockerfile linting — Hadolint  [host]
+  hadolint --config ops/config/hadolint.yaml services/api/Dockerfile
+  hadolint --config ops/config/hadolint.yaml services/fetch/Dockerfile
+  hadolint --config ops/config/hadolint.yaml services/ingest/Dockerfile
+
+  Secret scanning — Gitleaks  [host]
+  gitleaks detect --source . -v
+
+  IaC / misconfig scanning — Trivy  [host]
+  trivy config --ignorefile ops/config/.trivyignore ops/
+  trivy config --ignorefile ops/config/.trivyignore docker-compose.yml
+
+  Image scanning — Trivy  [host]  (run after docker build)
+  trivy image --ignore-unfixed --severity CRITICAL,HIGH --ignorefile ops/config/.trivyignore <image>
+
+  Pre-commit hook — Gitleaks on every commit  [host]
+  pre-commit install                         Run once per clone
+  pre-commit run --all-files                 Run manually on all files
+
+API EXAMPLES  [host] or [dev]  (replace <port> with 8000 for Mode 1, 8080 for Mode 2)
   curl -s http://localhost:<port>/health | jq
   curl -s http://localhost:<port>/tasks  | jq
   curl -s -X POST http://localhost:<port>/tasks \

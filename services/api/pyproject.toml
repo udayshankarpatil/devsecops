@@ -18,11 +18,16 @@ dependencies = [
 dev = [
     "pytest==9.0.2",
     "pytest-asyncio==1.3.0",
+    "bandit==1.7.9",
+    "pip-audit==2.7.3",
 ]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["api*"]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

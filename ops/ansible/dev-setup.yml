@@ -54,7 +54,7 @@
   tasks:
     - name: Install required CLI tools
       ansible.builtin.command:
-        cmd: brew install kind kubectl helm yq
+        cmd: brew install kind kubectl helm yq pre-commit
       register: brew_install
       # A brew link conflict means the bottles are installed but not linked.
       # The follow-up task resolves this with --overwrite.
@@ -69,9 +69,16 @@
       when: brew_install.rc != 0
       changed_when: true
 
+    - name: Install pre-commit hooks
+      ansible.builtin.command:
+        cmd: pre-commit install
+        chdir: "{{ playbook_dir }}/../.."
+      changed_when: true
+
     - name: Dev setup complete
       ansible.builtin.debug:
         msg:
-          - "All developer tools are installed."
+          - "All developer tools are installed and pre-commit hooks are active."
+          - "Gitleaks will now scan every commit for secrets automatically."
           - "Next: run 'ansible-playbook ops/ansible/kind-up.yml' to bootstrap the Kind cluster,"
           - "or run 'bash ops/bootstrap.sh' which does both in one step."
