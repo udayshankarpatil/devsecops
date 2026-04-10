@@ -33,7 +33,9 @@ devsecops/
 │   │       └── init.sql      # PostgreSQL schema (tasks table + updated_at trigger)
 │   ├── scripts/
 │   │   ├── check-setup.sh    # Verify one-time dev setup is complete
-│   │   └── check-running.sh  # Verify application is deployed and running
+│   │   ├── check-running.sh  # Verify application is deployed and running
+│   │   ├── scan-host.sh      # Host-side security scans: Hadolint, Gitleaks, Trivy
+│   │   └── scan-dev.sh       # Python security scans: Bandit, pip-audit  [dev]
 │   ├── setup.sh              # Host machine setup: install tools + activate pre-commit hook (once per clone)
 │   └── bootstrap.sh          # Provision the local Kind cluster + ArgoCD for GitOps validation (idempotent)
 ├── services/

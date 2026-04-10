@@ -44,30 +44,8 @@ TESTS  [dev]
   cd services/fetch   && pytest
 
 SECURITY SCANNING  (mirrors CI — run before pushing)
-  # SAST — Bandit  [dev]
-  cd services/api     && bandit -r src/ -ll -q
-  cd services/fetch   && bandit -r src/ -ll -q
-  cd services/ingest  && bandit -r src/ -ll -q
-
-  # SCA — pip-audit  [dev]
-  cd services/api     && pip-audit
-  cd services/fetch   && pip-audit
-  cd services/ingest  && pip-audit
-
-  # Dockerfile linting — Hadolint  [host]
-  hadolint --config ops/config/hadolint.yaml services/api/Dockerfile
-  hadolint --config ops/config/hadolint.yaml services/fetch/Dockerfile
-  hadolint --config ops/config/hadolint.yaml services/ingest/Dockerfile
-
-  # Secret scanning — Gitleaks  [host]
-  gitleaks detect --source . -v
-
-  # IaC / misconfig scanning — Trivy  [host]
-  trivy config --ignorefile ops/config/.trivyignore ops/
-  trivy config --ignorefile ops/config/.trivyignore docker-compose.yml
-
-  # Image scanning — Trivy  [host]  (run after docker build)
-  trivy image --ignore-unfixed --severity CRITICAL,HIGH --ignorefile ops/config/.trivyignore <image>
+  bash ops/scripts/scan-host.sh                       Hadolint, Gitleaks, Trivy  [host]
+  bash ops/scripts/scan-dev.sh                        Bandit, pip-audit  [dev]
 
   # Pre-commit hook — Gitleaks on every commit  [host]
   pre-commit run --all-files                          Run manually on all files

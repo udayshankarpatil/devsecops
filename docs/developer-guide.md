@@ -3,11 +3,14 @@
 # Developer Guide
 
 
->[host] = macOS terminal (iTerm etc.).  [dev] = VS Code terminal (runs inside the dev container).
->
->`docker compose` commands must always be [host] — running them from VS Code resolves volume mount paths incorrectly.
->
-> For a one-screen command reference, run `bash help.sh`.
+This project uses a dev container for all Python work, but some commands must run on the host machine. Throughout this guide:
+
+- **[host]** — your macOS terminal (iTerm, Terminal, etc.)
+- **[dev]** — a VS Code terminal, which runs inside the dev container
+
+> `docker compose` commands must always be run [host]. When run from a VS Code terminal, volume mount paths resolve incorrectly.
+
+For a one-screen command reference, run `bash help.sh`.
 
 ## Contents
 
@@ -83,18 +86,14 @@ Tests use mocks for all external dependencies (Kafka, PostgreSQL, HTTP). No runn
 
 ### Running security scans locally
 
-These mirror the CI security gates (`bash help.sh` gives the full annotated list).
+These mirror the CI security gates. Two scripts cover all gates — run both before pushing:
 
 ```bash
-# [dev] — Python source checks (bandit, pip-audit installed as dev dependencies)
-cd services/api && bandit -r src/ -ll -q
-cd services/api && pip-audit
-
-# [host] — Infrastructure checks (installed via Homebrew)
-hadolint --config ops/config/hadolint.yaml services/api/Dockerfile
-trivy config --ignorefile ops/config/.trivyignore ops/
-gitleaks detect --source . -v
+bash ops/scripts/scan-host.sh   # Hadolint, Gitleaks, Trivy  [host]
+bash ops/scripts/scan-dev.sh    # Bandit, pip-audit           [dev]
 ```
+
+Each script detects the wrong environment and aborts with a clear message if invoked in the wrong context.
 
 ### Managing the stack [host]
 
