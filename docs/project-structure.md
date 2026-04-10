@@ -36,13 +36,14 @@ devsecops/
 │   │   ├── check-running.sh  # Verify application is deployed and running
 │   │   ├── scan-host.sh      # Host-side security scans: Hadolint, Gitleaks, Trivy
 │   │   └── scan-dev.sh       # Python security scans: Bandit, pip-audit  [dev]
+│   ├── help.sh               # Quick reference output (invoked via bash dev.sh help)
 │   ├── setup.sh              # Host machine setup: install tools + activate pre-commit hook (once per clone)
 │   └── bootstrap.sh          # Provision the local Kind cluster + ArgoCD for GitOps validation (idempotent)
 ├── services/
 │   ├── api/                  # Gateway: FastAPI REST API, Kafka producer, HTTP client to fetch
 │   ├── ingest/               # Ingestion: Kafka consumer, asyncpg writes to PostgreSQL
 │   └── fetch/                # Retrieval: FastAPI read-only API, asyncpg queries
-├── help.sh                   # Quick reference for all developer commands
+├── dev.sh                    # Developer task runner (setup, test, scan, build, up, down, …)
 ├── CLAUDE.md                 # Project conventions and context for Claude Code
 ├── docker-compose.yml        # Full-stack orchestration (all services + Kafka + PostgreSQL)
 ├── docker-compose.override.yml  # Dev overrides: live-reload targets and source volume mounts

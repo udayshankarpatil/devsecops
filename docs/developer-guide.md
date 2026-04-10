@@ -10,7 +10,7 @@ This project uses a dev container for all Python work, but some commands must ru
 
 > `docker compose` commands must always be run [host]. When run from a VS Code terminal, volume mount paths resolve incorrectly.
 
-For a one-screen command reference, run `bash help.sh`.
+For a one-screen command reference, run `bash dev.sh help`.
 
 ## Contents
 

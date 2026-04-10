@@ -3,6 +3,7 @@
 ## Working with Claude
 
 - **Git is managed by the developer.** Never stage, commit, push, or run any other git write operation unless explicitly asked. This includes `git add`, `git commit`, `git push`, `git restore`, and similar commands.
+- **Commit messages** should capture the essence of the change — not list the steps taken to implement it. Omit trivial details such as documentation updates.
 
 ## Project Overview
 
@@ -53,7 +54,7 @@ UUIDs are generated in `api` before publishing, so callers get an ID in the `202
 ## Quick Reference
 
 ```bash
-bash help.sh   # one-screen summary of all developer commands
+bash dev.sh help   # one-screen summary of all developer commands
 ```
 
 ## Local Deployment Modes

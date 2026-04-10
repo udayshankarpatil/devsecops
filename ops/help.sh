@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Quick reference for task-manager developer tools.
+# Invoked via: bash dev.sh help
 # For full details see docs/developer-guide.md
 
 cat <<'EOF'
