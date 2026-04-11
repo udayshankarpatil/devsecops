@@ -71,7 +71,9 @@ curl http://localhost:8000/health
 
 ### Making code changes
 
-Hot reload is active for all three services. Save a `.py` file and the affected service restarts automatically within a second. **No docker commands are needed for routine code changes.**
+Hot reload is active for all three services. Save a `.py` file and the affected service restarts automatically. **No docker commands are needed for routine code changes.**
+
+> **Note:** each save triggers a full service restart. If VS Code autosave is enabled, frequent saves — including mid-edit saves with syntax errors — will cause repeated restarts and unnecessary CPU load.
 
 ### Running tests [dev]
 

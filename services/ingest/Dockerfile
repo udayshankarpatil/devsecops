@@ -15,4 +15,4 @@ CMD ["python", "-m", "ingest.main"]
 
 FROM base AS dev
 RUN pip install --no-cache-dir -e . "watchdog[watchmedo]"
-CMD ["watchmedo", "auto-restart", "--directory=/app/src", "--pattern=*.py", "--recursive", "--", "python", "-m", "ingest.main"]
+CMD ["watchmedo", "auto-restart", "--directory=/app/src", "--pattern=*.py", "--recursive", "--debounce-interval=3", "--", "python", "-m", "ingest.main"]

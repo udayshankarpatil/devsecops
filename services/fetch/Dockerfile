@@ -18,4 +18,4 @@ CMD ["uvicorn", "fetch.main:app", "--host", "0.0.0.0", "--port", "8002"]
 
 FROM base AS dev
 RUN pip install --no-cache-dir -e .
-CMD ["uvicorn", "fetch.main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
+CMD ["uvicorn", "fetch.main:app", "--host", "0.0.0.0", "--port", "8002", "--reload", "--reload-delay", "3"]
