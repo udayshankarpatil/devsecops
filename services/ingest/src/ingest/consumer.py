@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Touched at startup and after each successful commit so the k8s liveness probe
 # (exec: cat /tmp/ingest_alive) can verify the consumer is running and healthy.
-_HEARTBEAT = Path("/tmp/ingest_alive")
+_HEARTBEAT = Path("/tmp/ingest_alive")  # nosec B108 # fixed path shared with k8s liveness probe (exec: cat /tmp/ingest_alive)
 
 
 async def run_consumer(

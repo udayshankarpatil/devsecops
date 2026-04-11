@@ -43,7 +43,7 @@ done
 echo ""
 echo "── pip-audit (SCA) ──────────────────────────────────────────────────────"
 for svc in api fetch ingest; do
-    run_scan "pip-audit · $svc" bash -c "cd services/$svc && pip-audit"
+    run_scan "pip-audit · $svc" pip-audit -r <(python ops/scripts/pyproject_deps.py "services/$svc/pyproject.toml")
 done
 
 # ── Summary ────────────────────────────────────────────────────────────────────

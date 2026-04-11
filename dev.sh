@@ -181,8 +181,12 @@ case "$COMMAND" in
     scan)
         if [ -f /.dockerenv ]; then
             bash ops/scripts/scan-dev.sh
+            echo ""
+            echo "Note: SAST and SCA only. Run 'bash dev.sh scan' from the host for Hadolint, Gitleaks, and Trivy."
         else
             bash ops/scripts/scan-host.sh
+            echo ""
+            echo "Note: Hadolint, Gitleaks, and Trivy only. Run 'bash dev.sh scan' from the dev container for SAST and SCA."
         fi
         ;;
     build)

@@ -48,8 +48,8 @@ run_scan "gitleaks" gitleaks detect --source . -v
 # ── Trivy — IaC / misconfig scanning ─────────────────────────────────────────
 echo ""
 echo "── Trivy (IaC / misconfig) ──────────────────────────────────────────────"
-run_scan "trivy config · ops/"               trivy config --ignorefile ops/config/.trivyignore ops/
-run_scan "trivy config · docker-compose.yml" trivy config --ignorefile ops/config/.trivyignore docker-compose.yml
+run_scan "trivy config · ops/"               trivy config --exit-code 1 --severity CRITICAL,HIGH --ignorefile ops/config/.trivyignore ops/
+run_scan "trivy config · docker-compose.yml" trivy config --exit-code 1 --severity CRITICAL,HIGH --ignorefile ops/config/.trivyignore docker-compose.yml
 
 # ── Trivy — image scanning ────────────────────────────────────────────────────
 echo ""
@@ -61,7 +61,7 @@ for svc in api fetch ingest; do
         SKIP=$((SKIP + 1))
     else
         run_scan "trivy image · $svc" \
-            trivy image --ignore-unfixed --severity CRITICAL,HIGH \
+            trivy image --exit-code 1 --ignore-unfixed --severity CRITICAL,HIGH \
                 --ignorefile ops/config/.trivyignore "$image"
     fi
 done

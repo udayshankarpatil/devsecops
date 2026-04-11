@@ -1,5 +1,9 @@
 FROM python:3.12-slim AS base
 
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY pyproject.toml .
 # Stub package directory lets pip resolve and cache all dependencies as a

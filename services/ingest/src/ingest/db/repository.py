@@ -36,7 +36,7 @@ async def update_task(conn: asyncpg.Connection, task_id: str, payload: dict) -> 
     if not set_clauses:
         return
 
-    query = f"UPDATE tasks SET {', '.join(set_clauses)} WHERE id = $1"
+    query = f"UPDATE tasks SET {', '.join(set_clauses)} WHERE id = $1"  # nosec B608 # fields are allowlist-validated above
     await conn.execute(query, *values)
 
 

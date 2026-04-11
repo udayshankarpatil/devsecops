@@ -13,6 +13,11 @@
 
 set -euo pipefail
 
+if [ -f /.dockerenv ]; then
+    echo "Error: setup.sh must be run from the host machine, not the dev container." >&2
+    exit 1
+fi
+
 # Resolve repo root so the script works when called from any directory.
 # The script lives in ops/, so go one level up to reach the repo root.
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
