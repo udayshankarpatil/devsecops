@@ -12,6 +12,15 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_ROOT"
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+# Returns true if any Mode 1 service (api, fetch, ingest, devcontainer) is running.
+mode1_active() {
+    docker compose ps --status running --services 2>/dev/null \
+        | grep -vE "^(postgres|kafka)$" \
+        | grep -q .
+}
+
 # ── Context guards ────────────────────────────────────────────────────────────
 
 require_host() {
@@ -35,16 +44,17 @@ usage_general() {
 Usage: bash dev.sh <command> [args]
 
 Commands:
-  setup    Install host tools and activate pre-commit hook       [host]
-  test     Run pytest for all services                           [dev]
-  scan     Run security scans (auto-detects host vs dev context)
-  build    Build Docker images                                   [host]
-  up       Start the stack                                       [host]
-  down     Stop the stack                                        [host]
-  run      Provision the Kind cluster (Mode 2)                   [host]
-  check    Verify the application is running                     [host]
-  stop     Tear down the Kind cluster (Mode 2)                   [host]
-  help     Show the developer quick reference
+  setup       Install host tools and activate pre-commit hook    [host]
+  test        Run pytest for all services                        [dev]
+  scan        Run security scans (auto-detects host vs dev)
+  build       Build Docker images                                [host]
+  up          Start Mode 1 — Docker Compose                      [host]
+  up-kind     Start Mode 2 — Kind cluster                        [host]
+  down        Stop Mode 1 — Docker Compose                       [host]
+  down-kind   Stop Mode 2 — Kind cluster                         [host]
+  check       Verify Mode 1 is running                           [host]
+  check-kind  Verify Mode 2 is running                           [host]
+  help        Show the developer quick reference
 
 Run 'bash dev.sh -h <command>' for command-specific help.
 EOF
@@ -89,41 +99,57 @@ EOF
             ;;
         up)     cat <<'EOF'
 up  [host]
-  Starts the stack via docker compose.
+  Starts Mode 1 — all services via Docker Compose. Runs in the foreground
+  by default; logs stream to the terminal and Ctrl+C stops all containers.
 
-  bash dev.sh up                       # all services + infra
+  bash dev.sh up                       # foreground — all services + infra
+  bash dev.sh up -d                    # detached — terminal returns immediately
   bash dev.sh up postgres kafka        # infra only
+EOF
+            ;;
+        'up-kind')  cat <<'EOF'
+up-kind  [host]
+  Starts Mode 2 — provisions the Kind cluster and deploys the application
+  via ArgoCD. Starts postgres and kafka first if they are not already
+  running. Idempotent — safe to re-run.
+
+  bash dev.sh up-kind                           # prompts for GitHub username
+  bash dev.sh up-kind -e image_owner=<user>     # non-interactive
 EOF
             ;;
         down)   cat <<'EOF'
 down  [host]
-  Stops the stack via docker compose.
+  Stops Mode 1 — all Docker Compose services.
+  Note: if Mode 2 is running, this will cut the Kind pods off from postgres
+  and kafka. Mode 2 has no protection against Mode 1 shutdown.
 
-  bash dev.sh down      # stop
-  bash dev.sh down -v   # stop and wipe database (destructive)
+  bash dev.sh down                     # stop all containers
+  bash dev.sh down -v                  # stop and wipe database (destructive)
 EOF
             ;;
-        run)    cat <<'EOF'
-run  [host]
-  Provisions the local Kind cluster and deploys ArgoCD (Mode 2). Idempotent —
-  safe to re-run after 'stop'. Requires 'setup' to have been run first.
+        'down-kind')  cat <<'EOF'
+down-kind  [host]
+  Stops Mode 2 — tears down the Kind cluster. Postgres and kafka are stopped
+  only if Mode 1 is not running; otherwise they are left up.
 
-  bash dev.sh run                              # prompts for GitHub username
-  bash dev.sh run -e image_owner=<username>    # non-interactive
+  bash dev.sh down-kind
 EOF
             ;;
         check)  cat <<'EOF'
 check  [host]
-  Verifies Docker Compose infra, Kind cluster, pods, ArgoCD sync, and API health.
+  Verifies Mode 1 — Docker Compose infra (postgres, kafka), all three application
+  services, and the API /health endpoint at port 8000.
 
   bash dev.sh check
 EOF
             ;;
-        stop)   cat <<'EOF'
-stop  [host]
-  Tears down the local Kind cluster (Mode 2). Docker Compose services are left running.
+        'check-kind')  cat <<'EOF'
+check-kind  [host]
+  Verifies Mode 2 — Docker Compose infra (postgres, kafka), Kind cluster
+  reachability, pod status, ArgoCD sync/health, and the API /health endpoint
+  at port 8080.
 
-  bash dev.sh stop
+  bash dev.sh check-kind
 EOF
             ;;
         help)   cat <<'EOF'
@@ -197,21 +223,31 @@ case "$COMMAND" in
         require_host
         docker compose up "$@"
         ;;
+    up-kind)
+        require_host
+        bash ops/bootstrap.sh "$@"
+        ;;
     down)
         require_host
         docker compose down "$@"
         ;;
-    run)
+    down-kind)
         require_host
-        bash ops/bootstrap.sh "$@"
+        ansible-playbook ops/ansible/kind-down.yml
+        if mode1_active; then
+            echo "Mode 1 is running — leaving postgres and kafka up."
+        else
+            echo "Mode 1 is not running — stopping shared infrastructure."
+            docker compose stop postgres kafka
+        fi
         ;;
     check)
         require_host
-        bash ops/scripts/check-running.sh
+        bash ops/scripts/check-mode1.sh
         ;;
-    stop)
+    check-kind)
         require_host
-        ansible-playbook ops/ansible/kind-down.yml
+        bash ops/scripts/check-running.sh
         ;;
     help)
         bash ops/help.sh

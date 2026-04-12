@@ -42,7 +42,7 @@ Infrastructure lives in `docker-compose.yml`. Schema is in `ops/infra/db/init.sq
 
 - Schema: `ops/infra/db/init.sql` (mounted into Postgres at first boot)
 - No ORM — raw `asyncpg` throughout
-- No migrations yet — schema changes require `docker compose down -v`
+- No migrations yet — schema changes require `bash dev.sh down -v`
 - `updated_at` is maintained automatically by a `BEFORE UPDATE` trigger in `init.sql`
 
 ## Write Response Convention
@@ -68,7 +68,7 @@ for full host port and network topology details.
 |---|---|---|
 | **Use for** | Active development, hot reload | Validating the GitOps/CD pipeline |
 | **API port** | `http://localhost:8000` | `http://localhost:8080` |
-| **Started with** | `docker compose up` | `ansible-playbook ops/ansible/kind-up.yml` |
+| **Started with** | `bash dev.sh up` | `bash dev.sh up-kind` |
 
 Postgres and Kafka always run via Docker Compose. In Mode 2 the Kind node is
 connected to the same Docker network so pods reach them by service name.
@@ -78,23 +78,26 @@ connected to the same Docker network so pods reach them by service name.
 ### Host setup (once per machine / once per clone)
 
 ```bash
-bash ops/setup.sh
+bash dev.sh setup
 ```
 
 ### Mode 1 — Docker Compose
 
 ```bash
-# Start everything
-docker compose up
+# Start everything (foreground — logs stream to terminal, Ctrl+C stops all containers)
+bash dev.sh up
+
+# Start detached (terminal returns immediately; use 'docker compose logs -f' to follow logs)
+bash dev.sh up -d
 
 # Infra only (run services locally)
-docker compose up postgres kafka
+bash dev.sh up postgres kafka
 
 # Build images
-docker compose build [api|ingest|fetch]
+bash dev.sh build [api|ingest|fetch]
 
 # Reset database (destroys all data)
-docker compose down -v
+bash dev.sh down -v
 
 # Tail logs
 docker compose logs -f [api|ingest|fetch|kafka|postgres]
@@ -103,16 +106,17 @@ docker compose logs -f [api|ingest|fetch|kafka|postgres]
 ### Mode 2 — Kind
 
 ```bash
-# Provision Kind cluster + ArgoCD — idempotent, re-run to recreate after kind-down
-bash ops/bootstrap.sh                                   # prompts for GitHub username
-bash ops/bootstrap.sh -e image_owner=<github-username>  # non-interactive
+# Provision Kind cluster + ArgoCD — idempotent, re-run to recreate after down kind
+bash dev.sh up-kind                              # prompts for GitHub username
+bash dev.sh up-kind -e image_owner=<username>   # non-interactive
 
-# Tear down cluster
-ansible-playbook ops/ansible/kind-down.yml
+# Tear down cluster (stops postgres/kafka only if Mode 1 is not running)
+bash dev.sh down-kind
 
 # Verify setup / verify app is running
 bash ops/scripts/check-setup.sh
-bash ops/scripts/check-running.sh
+bash dev.sh check       # Mode 1: infra + services + API at :8000
+bash dev.sh check-kind  # Mode 2: infra + cluster + pods + API at :8080
 ```
 
 ### Tests

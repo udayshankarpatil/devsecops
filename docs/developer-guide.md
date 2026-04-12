@@ -16,8 +16,9 @@ For a one-screen command reference, run `bash dev.sh help`.
 
 1. [Prerequisites](#prerequisites)
 2. [One-time setup](#one-time-setup)
-3. [Day-to-day: development (Mode 1)](#day-to-day-development-mode-1)
-4. [GitOps validation (Mode 2 — Kind)](#gitops-validation-mode-2--kind)
+3. [Two modes](#two-modes)
+4. [Day-to-day: development (Mode 1)](#day-to-day-development-mode-1)
+5. [GitOps validation (Mode 2 — Kind)](#gitops-validation-mode-2--kind)
 
 ---
 
@@ -40,14 +41,14 @@ Performed once per machine, or once per fresh clone.
 **2. Install host tools** [host]:
 
 ```bash
-bash ops/setup.sh
+bash dev.sh setup
 ```
 
 This installs CLI tools (Kind, kubectl, Helm, yq, pre-commit) and activates a git hook that scans every commit for hardcoded secrets.
 
 **3. Open the repository** in VS Code. When prompted, click Reopen in Container (or run `Dev Containers: Reopen in Container` from `⇧⌘P`).
 
-VS Code builds the dev container image on the first open — this takes a few minutes. Subsequent opens reuse the cached image and are fast. All six containers start automatically on a shared Docker network:
+VS Code builds the dev container image on the first open — this takes a few minutes. Subsequent opens reuse the cached image and are fast. All six containers start automatically on a shared Docker network — this is equivalent to running `bash dev.sh up`:
 
 | Container | Role |
 |---|---|
@@ -67,6 +68,39 @@ curl http://localhost:8000/health
 
 ---
 
+## Two modes
+
+The application can run locally in two ways. They differ in *where* the application services run, but they always share the same Postgres and Kafka — both of which run via Docker Compose regardless of mode.
+
+```
+┌── Mode 1 (Docker Compose) ──────┐   ┌── Mode 2 (Kind cluster) ────────┐
+│  api (:8000) · fetch · ingest   │   │  api (:8080) · fetch · ingest   │
+└────────────────┬────────────────┘   └────────────────┬────────────────┘
+                 │                                     │
+                 └──────────────────┬──────────────────┘
+                                    ↓
+                   ┌── Shared (Docker Compose) ──────┐
+                   │        postgres · kafka         │
+                   └─────────────────────────────────┘
+```
+
+| | Mode 1 | Mode 2 |
+|---|---|---|
+| **Purpose** | Active development | GitOps / CD pipeline validation |
+| **Application runs as** | Docker Compose containers | Kubernetes pods (Kind cluster) |
+| **API port** | `:8000` | `:8080` |
+| **Kafka topic** | `tasks` | `tasks-kind` |
+| **Start** | `bash dev.sh up` | `bash dev.sh up-kind` |
+| **Stop** | `bash dev.sh down` | `bash dev.sh down-kind` |
+
+Both modes can run simultaneously and share the same data — a task written via `:8000` is visible at `:8080`.
+
+> **Mode 2 is not protected against Mode 1 shutdown.** Running `bash dev.sh down` while Mode 2 is active will cut the Kind pods off from postgres and kafka. If you need Mode 2 to remain functional, do not stop Mode 1 first.
+>
+> The reverse is protected: `bash dev.sh down-kind` checks whether Mode 1 is running before stopping postgres and kafka, and leaves them up if it is.
+
+---
+
 ## Development (Mode 1)
 
 ### Making code changes
@@ -78,36 +112,37 @@ Hot reload is active for all three services. Save a `.py` file and the affected 
 ### Running tests [dev]
 
 ```bash
-pytest                          # all services, from repo root
-cd services/api    && pytest    # single service
-cd services/ingest && pytest
-cd services/fetch  && pytest
+bash dev.sh test                        # all services, from repo root
+bash dev.sh test services/api           # single service
+bash dev.sh test services/ingest
+bash dev.sh test services/fetch
 ```
 
 Tests use mocks for all external dependencies (Kafka, PostgreSQL, HTTP). No running infrastructure is required.
 
 ### Running security scans locally
 
-These mirror the CI security gates. Two scripts cover all gates — run both before pushing:
+These mirror the CI security gates. Run before pushing — from both environments to cover all gates:
 
 ```bash
-bash ops/scripts/scan-host.sh   # Hadolint, Gitleaks, Trivy  [host]
-bash ops/scripts/scan-dev.sh    # Bandit, pip-audit           [dev]
+bash dev.sh scan   # Hadolint, Gitleaks, Trivy  [host]
+bash dev.sh scan   # Bandit, pip-audit           [dev]
 ```
 
-Each script detects the wrong environment and aborts with a clear message if invoked in the wrong context.
+The command auto-detects the environment and runs the appropriate scans.
 
 ### Managing the stack [host]
 
 ```bash
-docker compose logs -f [api|fetch|ingest]     # tail service logs
-docker compose build [api|fetch|ingest]       # rebuild after Dockerfile or pyproject.toml change
-docker compose down                           # stop all containers
-docker compose up                             # restart stopped containers
-docker compose down -v && docker compose up   # reset database — destroys all data
+bash dev.sh up                                      # start stack — runs in foreground, logs stream to terminal; Ctrl+C stops all containers
+bash dev.sh up -d                                   # start stack detached — terminal returns immediately, containers keep running
+docker compose logs -f [api|fetch|ingest]           # tail service logs (useful when running detached)
+bash dev.sh build [api|fetch|ingest]                # rebuild after Dockerfile or pyproject.toml change
+bash dev.sh down                                    # stop all containers
+bash dev.sh down -v && bash dev.sh up               # reset database — destroys all data
 ```
 
-> VS Code's **Rebuild Container** only rebuilds the `devcontainer` image. The application services are unaffected. Closing VS Code leaves all containers running — they must be stopped explicitly with `docker compose down`.
+> VS Code's **Rebuild Container** only rebuilds the `devcontainer` image. The application services are unaffected. Closing VS Code or detaching from the dev container stops all containers — equivalent to `bash dev.sh down`.
 
 ### Schema changes
 
@@ -115,7 +150,7 @@ The schema lives in `ops/infra/db/init.sql`. PostgreSQL only executes this file 
 
 ```bash
 # [host] — destroys all data
-docker compose down -v && docker compose up
+bash dev.sh down -v && bash dev.sh up
 ```
 
 ---
@@ -129,11 +164,11 @@ Use this mode to validate the full CI/CD pipeline end-to-end: images are pulled 
 ### Setup [host]
 
 ```bash
-bash ops/bootstrap.sh                                    # prompts for GitHub username
-bash ops/bootstrap.sh -e image_owner=<github-username>  # non-interactive
+bash dev.sh up-kind                              # prompts for GitHub username
+bash dev.sh up-kind -e image_owner=<username>   # non-interactive
 ```
 
-This installs Kind, kubectl, Helm, yq, and Ansible Galaxy collections, starts Postgres and Kafka if they are not already running, then creates the Kind cluster and deploys ArgoCD. The script is idempotent — safe to re-run if anything fails midway, or to recreate the cluster after `kind-down`.
+This installs Kind, kubectl, Helm, yq, and Ansible Galaxy collections, starts postgres and kafka if they are not already running, then creates the Kind cluster and deploys ArgoCD. The command is idempotent — safe to re-run if anything fails midway, or to recreate the cluster after `down kind`.
 
 ### Accessing services [host]
 
@@ -151,13 +186,19 @@ kubectl get application -n argocd   # Synced / Healthy
 curl http://localhost:8080/health   # {"status":"ok"}
 ```
 
-Or run `bash ops/scripts/check-running.sh` for a full automated check.
+Or run `bash dev.sh check-kind` for a full automated check.
 
 ### Tearing down [host]
 
 ```bash
-ansible-playbook ops/ansible/kind-down.yml
-# Docker Compose services remain running; stop them separately if needed:
-docker compose down
+bash dev.sh down-kind
+```
+
+This tears down the Kind cluster. If Mode 1 is not running, postgres and kafka are stopped as well. If Mode 1 is running, they are left up.
+
+To stop Mode 1 afterwards:
+
+```bash
+bash dev.sh down
 ```
 

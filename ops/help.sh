@@ -12,41 +12,43 @@ cat <<'EOF'
   [host] = macOS terminal (iTerm etc.)    [dev] = VS Code terminal (dev container)
 
 SETUP  [host]  (once per machine / once per clone)
-  bash ops/setup.sh                                   Install host tools + activate pre-commit hook
+  bash dev.sh setup                                   Install host tools + activate pre-commit hook
 
-LOCAL DEV STACK [host]
+LOCAL DEV STACK  Mode 1  [host]
   API: http://localhost:8000  ·  Swagger: http://localhost:8000/docs
 
-  docker compose up                                   Start all services + infra
-  docker compose up postgres kafka                    Start infra only
-  docker compose down                                 Stop
-  docker compose down -v                              Stop + wipe database (destructive)
-  docker compose build [api|ingest|fetch]             Rebuild images
+  bash dev.sh up                                      Start all services + infra (foreground; Ctrl+C stops all)
+  bash dev.sh up -d                                   Start detached (terminal returns; containers keep running)
+  bash dev.sh up postgres kafka                       Start infra only
+  bash dev.sh down                                    Stop
+  bash dev.sh down -v                                 Stop + wipe database (destructive)
+  bash dev.sh build [api|ingest|fetch]                Rebuild images
   docker compose logs -f [api|ingest|fetch]           Tail service logs
 
-LOCAL CD STACK [host]
+LOCAL CD STACK  Mode 2  [host]
   API: http://localhost:8080  ·  ArgoCD: https://localhost:8443 (see below)
 
-  bash ops/bootstrap.sh                               Provision Kind cluster + ArgoCD (idempotent)
-  bash ops/bootstrap.sh -e image_owner=<user>         Non-interactive (skip prompt)
-  ansible-playbook ops/ansible/kind-down.yml          Tear down cluster
+  bash dev.sh up-kind                                 Provision Kind cluster + ArgoCD (idempotent)
+  bash dev.sh up-kind -e image_owner=<user>           Non-interactive (skip prompt)
+  bash dev.sh down-kind                               Tear down cluster (protects Mode 1 infra)
   kubectl get pods -n task-manager                    Pod status
   kubectl get application task-manager -n argocd      ArgoCD sync status
   kubectl port-forward svc/argocd-server -n argocd 8443:443  Expose ArgoCD UI
 
 HEALTH CHECKS  [host]
   bash ops/scripts/check-setup.sh                     Kind cluster + tools ready?
-  bash ops/scripts/check-running.sh                   Infra up, pods Running, API responding?
+  bash dev.sh check                                   Mode 1: infra + services + API at :8000
+  bash dev.sh check-kind                              Mode 2: infra + cluster + pods + API at :8080
 
 TESTS  [dev]
-  pytest                                              All services (from repo root)
-  cd services/api     && pytest                       Single service
-  cd services/ingest  && pytest
-  cd services/fetch   && pytest
+  bash dev.sh test                                    All services (from repo root)
+  bash dev.sh test services/api                       Single service
+  bash dev.sh test services/ingest
+  bash dev.sh test services/fetch
 
 SECURITY SCANNING  (mirrors CI — run before pushing)
-  bash ops/scripts/scan-host.sh                       Hadolint, Gitleaks, Trivy  [host]
-  bash ops/scripts/scan-dev.sh                        Bandit, pip-audit  [dev]
+  bash dev.sh scan                                    Hadolint, Gitleaks, Trivy  [host]
+  bash dev.sh scan                                    Bandit, pip-audit  [dev]
 
   # Pre-commit hook — Gitleaks on every commit  [host]
   pre-commit run --all-files                          Run manually on all files
