@@ -32,20 +32,24 @@ check() {
     fi
 }
 
-# ── Infrastructure (Docker Compose) ───────────────────────────────────────────
-echo "── Infrastructure (Docker Compose) ──────────────────────────────────────"
-check "postgres running" "docker compose ps --status running 2>/dev/null | grep -q postgres"
-check "kafka running"    "docker compose ps --status running 2>/dev/null | grep -q kafka"
+running_containers() {
+    docker ps --filter status=running --format '{{.Names}}'
+}
 
-# ── Application services (Docker Compose) ─────────────────────────────────────
-echo "── Application services (Docker Compose) ────────────────────────────────"
-check "api running"    "docker compose ps --status running 2>/dev/null | grep -q api"
-check "fetch running"  "docker compose ps --status running 2>/dev/null | grep -q fetch"
-check "ingest running" "docker compose ps --status running 2>/dev/null | grep -q ingest"
+# ── Infrastructure ─────────────────────────────────────────────────────────────
+echo "── Infrastructure ───────────────────────────────────────────────────────"
+check "postgres running" "running_containers | grep -qE '\-postgres\-'"
+check "kafka running"    "running_containers | grep -qE '\-kafka\-'"
+
+# ── Application services ───────────────────────────────────────────────────────
+echo "── Application services ─────────────────────────────────────────────────"
+check "api running"    "running_containers | grep -qE '\-api\-'"
+check "fetch running"  "running_containers | grep -qE '\-fetch\-'"
+check "ingest running" "running_containers | grep -qE '\-ingest\-'"
 
 # ── API endpoint ───────────────────────────────────────────────────────────────
 echo "── API endpoint ─────────────────────────────────────────────────────────"
-check "GET /health → 200" "curl -sf http://localhost:8000/health"
+check "GET /health → 200" "curl -sf --max-time 3 http://localhost:8000/health"
 
 # ── Summary ────────────────────────────────────────────────────────────────────
 echo ""

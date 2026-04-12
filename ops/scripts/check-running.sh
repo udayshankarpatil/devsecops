@@ -32,29 +32,33 @@ check() {
     fi
 }
 
-# ── Infrastructure (Docker Compose) ───────────────────────────────────────────
-echo "── Infrastructure (Docker Compose) ──────────────────────────────────────"
-check "postgres running" "docker compose ps --status running 2>/dev/null | grep -q postgres"
-check "kafka running"    "docker compose ps --status running 2>/dev/null | grep -q kafka"
+running_containers() {
+    docker ps --filter status=running --format '{{.Names}}'
+}
+
+# ── Infrastructure ─────────────────────────────────────────────────────────────
+echo "── Infrastructure ───────────────────────────────────────────────────────"
+check "postgres running" "running_containers | grep -qE '\-postgres\-'"
+check "kafka running"    "running_containers | grep -qE '\-kafka\-'"
 
 # ── Kind cluster ───────────────────────────────────────────────────────────────
 echo "── Kind cluster ─────────────────────────────────────────────────────────"
-check "cluster reachable" "kubectl cluster-info --context kind-task-manager"
+check "cluster reachable" "kubectl cluster-info --context kind-task-manager --request-timeout=3s"
 
 # ── Pods (namespace: task-manager) ────────────────────────────────────────────
 echo "── Pods (namespace: task-manager) ───────────────────────────────────────"
-check "api pod Running"    "kubectl get pods -n task-manager -l app=api    -o jsonpath='{.items[*].status.phase}' | grep -q Running"
-check "fetch pod Running"  "kubectl get pods -n task-manager -l app=fetch  -o jsonpath='{.items[*].status.phase}' | grep -q Running"
-check "ingest pod Running" "kubectl get pods -n task-manager -l app=ingest -o jsonpath='{.items[*].status.phase}' | grep -q Running"
+check "api pod Running"    "kubectl get pods -n task-manager -l app=api    -o jsonpath='{.items[*].status.phase}' --request-timeout=3s | grep -q Running"
+check "fetch pod Running"  "kubectl get pods -n task-manager -l app=fetch  -o jsonpath='{.items[*].status.phase}' --request-timeout=3s | grep -q Running"
+check "ingest pod Running" "kubectl get pods -n task-manager -l app=ingest -o jsonpath='{.items[*].status.phase}' --request-timeout=3s | grep -q Running"
 
 # ── ArgoCD ─────────────────────────────────────────────────────────────────────
 echo "── ArgoCD ───────────────────────────────────────────────────────────────"
-check "application Synced"  "kubectl get application task-manager -n argocd -o jsonpath='{.status.sync.status}'   2>/dev/null | grep -q Synced"
-check "application Healthy" "kubectl get application task-manager -n argocd -o jsonpath='{.status.health.status}' 2>/dev/null | grep -q Healthy"
+check "application Synced"  "kubectl get application task-manager -n argocd -o jsonpath='{.status.sync.status}'   --request-timeout=3s 2>/dev/null | grep -q Synced"
+check "application Healthy" "kubectl get application task-manager -n argocd -o jsonpath='{.status.health.status}' --request-timeout=3s 2>/dev/null | grep -q Healthy"
 
 # ── API endpoint ───────────────────────────────────────────────────────────────
 echo "── API endpoint ─────────────────────────────────────────────────────────"
-check "GET /health → 200" "curl -sf http://localhost:8080/health"
+check "GET /health → 200" "curl -sf --max-time 3 http://localhost:8080/health"
 
 # ── Summary ────────────────────────────────────────────────────────────────────
 echo ""
