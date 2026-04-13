@@ -138,4 +138,4 @@
           - "Kind cluster '{{ cluster_name }}' is ready."
           - "ArgoCD is syncing from the gitops branch."
           - "API will be available at http://localhost:8080 once ArgoCD syncs."
-          - "ArgoCD UI: kubectl port-forward svc/argocd-server -n argocd 8443:443"
+          - "ArgoCD UI: bash dev.sh argo"

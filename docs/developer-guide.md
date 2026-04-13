@@ -165,7 +165,7 @@ Use this mode to validate the full CI/CD pipeline end-to-end: images are pulled 
 
 ```bash
 bash dev.sh up-kind                              # prompts for GitHub username
-bash dev.sh up-kind -e image_owner=<username>   # non-interactive
+bash dev.sh up-kind -e image_owner=<username>    # non-interactive
 ```
 
 This installs Kind, kubectl, Helm, yq, and Ansible Galaxy collections, starts postgres and kafka if they are not already running, then creates the Kind cluster and deploys ArgoCD. The command is idempotent — safe to re-run if anything fails midway, or to recreate the cluster after `down kind`.
@@ -175,8 +175,7 @@ This installs Kind, kubectl, Helm, yq, and Ansible Galaxy collections, starts po
 | What | How |
 |---|---|
 | API | `http://localhost:8080` · Swagger at `http://localhost:8080/docs` |
-| ArgoCD UI | `kubectl port-forward svc/argocd-server -n argocd 8443:443` → `https://localhost:8443` |
-| ArgoCD initial password | `kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' \| base64 -d` |
+| ArgoCD UI | `bash dev.sh argo` — prints credentials, opens `https://localhost:8443`, starts port-forward |
 
 ### Verifying a deployment [host]
 

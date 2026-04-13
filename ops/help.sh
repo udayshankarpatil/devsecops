@@ -33,7 +33,7 @@ LOCAL CD STACK  Mode 2  [host]
   bash dev.sh down-kind                               Tear down cluster (protects Mode 1 infra)
   kubectl get pods -n task-manager                    Pod status
   kubectl get application task-manager -n argocd      ArgoCD sync status
-  kubectl port-forward svc/argocd-server -n argocd 8443:443  Expose ArgoCD UI
+  bash dev.sh argo                                    Open ArgoCD UI (prints credentials + port-forwards)
 
 HEALTH CHECKS  [host]
   bash ops/scripts/check-setup.sh                     Kind cluster + tools ready?

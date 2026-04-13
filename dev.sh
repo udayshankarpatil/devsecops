@@ -44,16 +44,17 @@ usage_general() {
 Usage: bash dev.sh <command> [args]
 
 Commands:
-  setup       Install host tools and activate pre-commit hook    [host]
-  test        Run pytest for all services                        [dev]
+  setup       Install host tools and activate pre-commit hook           [host]
+  test        Run pytest for all services                                [dev]
   scan        Run security scans (auto-detects host vs dev)
-  build       Build Docker images                                [host]
-  up          Start Mode 1 — Docker Compose                      [host]
-  up-kind     Start Mode 2 — Kind cluster                        [host]
-  down        Stop Mode 1 — Docker Compose                       [host]
-  down-kind   Stop Mode 2 — Kind cluster                         [host]
-  check       Verify Mode 1 is running                           [host]
-  check-kind  Verify Mode 2 is running                           [host]
+  build       Build Docker images                                       [host]
+  up          Start Mode 1 — Docker Compose                             [host]
+  up-kind     Start Mode 2 — Kind cluster                               [host]
+  down        Stop Mode 1 — Docker Compose                              [host]
+  down-kind   Stop Mode 2 — Kind cluster                                [host]
+  check       Verify Mode 1 is running                                  [host]
+  check-kind  Verify Mode 2 is running                                  [host]
+  argo        Open the ArgoCD UI (prints credentials, port-forwards)    [host]
   help        Show the developer quick reference
 
 Run 'bash dev.sh -h <command>' for command-specific help.
@@ -152,6 +153,14 @@ check-kind  [host]
   bash dev.sh check-kind
 EOF
             ;;
+        argo)   cat <<'EOF'
+argo  [host]
+  Prints the ArgoCD admin credentials, opens https://localhost:8443 in the
+  default browser, then starts the kubectl port-forward (Ctrl+C to stop).
+
+  bash dev.sh argo
+EOF
+            ;;
         help)   cat <<'EOF'
 help
   Displays the developer quick reference.
@@ -248,6 +257,30 @@ case "$COMMAND" in
     check-kind)
         require_host
         bash ops/scripts/check-running.sh
+        ;;
+    argo)
+        require_host
+        ARGO_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret \
+            -o jsonpath='{.data.password}' 2>/dev/null | base64 -d)
+        if [ -z "$ARGO_PASSWORD" ]; then
+            echo "Error: could not retrieve ArgoCD admin password. Is the Kind cluster running?" >&2
+            exit 1
+        fi
+        echo ""
+        echo "ArgoCD credentials"
+        echo "  Username : admin"
+        echo "  Password : $ARGO_PASSWORD"
+        echo ""
+        echo "Opening https://localhost:8443 in your browser ..."
+        if command -v open &>/dev/null; then
+            open "https://localhost:8443"
+        elif command -v xdg-open &>/dev/null; then
+            xdg-open "https://localhost:8443"
+        fi
+        pkill -f "port-forward svc/argocd-server" 2>/dev/null && echo "Stopped existing port-forward." || true
+        echo "Starting port-forward — press Ctrl+C to stop."
+        echo ""
+        kubectl port-forward svc/argocd-server -n argocd 8443:443
         ;;
     help)
         bash ops/help.sh
