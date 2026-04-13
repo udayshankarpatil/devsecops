@@ -1,4 +1,6 @@
-# Project Structure and Tech Stack
+[← README](../README.md)
+
+# Project Structure
 
 ## Repository Layout
 
@@ -12,7 +14,7 @@ devsecops/
 ├── docs/                     # Extended documentation
 │   ├── api-reference.md      # Endpoint reference and Swagger UI links
 │   ├── ci-cd.md              # CI/CD pipeline and GitOps workflow
-│   ├── developer-guide.md    # Full developer workflows (docker-compose and Kind)
+│   ├── developer-guide.md    # Full developer workflows (Docker Compose and Kind)
 │   ├── port-mappings.md      # Host port tables and network topology
 │   └── project-structure.md  # Repository layout and tech stack (this file)
 ├── ops/                      # All operational infrastructure (non-application code)
@@ -31,13 +33,17 @@ devsecops/
 │   │       └── init.sql      # PostgreSQL schema (tasks table + updated_at trigger)
 │   ├── scripts/
 │   │   ├── check-setup.sh    # Verify one-time dev setup is complete
-│   │   └── check-running.sh  # Verify application is deployed and running
-│   └── bootstrap.sh          # One-command dev environment setup (tools + Kind cluster)
+│   │   ├── check-running.sh  # Verify application is deployed and running
+│   │   ├── scan-host.sh      # Host-side security scans: Hadolint, Gitleaks, Trivy
+│   │   └── scan-dev.sh       # Python security scans: Bandit, pip-audit  [dev]
+│   ├── help.sh               # Quick reference output (invoked via bash dev.sh help)
+│   ├── setup.sh              # Host machine setup: install tools + activate pre-commit hook (once per clone)
+│   └── bootstrap.sh          # Provision the local Kind cluster + ArgoCD for GitOps validation (idempotent)
 ├── services/
 │   ├── api/                  # Gateway: FastAPI REST API, Kafka producer, HTTP client to fetch
 │   ├── ingest/               # Ingestion: Kafka consumer, asyncpg writes to PostgreSQL
 │   └── fetch/                # Retrieval: FastAPI read-only API, asyncpg queries
-├── help.sh                   # Quick reference for all developer commands
+├── dev.sh                    # Developer task runner (setup, test, scan, build, up, down, …)
 ├── CLAUDE.md                 # Project conventions and context for Claude Code
 ├── docker-compose.yml        # Full-stack orchestration (all services + Kafka + PostgreSQL)
 ├── docker-compose.override.yml  # Dev overrides: live-reload targets and source volume mounts
@@ -55,17 +61,3 @@ service-name/
 ├── Dockerfile            # Multi-stage image: base → prod / base → dev
 └── pyproject.toml        # Project metadata, dependencies, and pytest configuration
 ```
-
-## Tech Stack
-
-| Component | Technology |
-|---|---|
-| Services | Python 3.12, FastAPI, uvicorn |
-| Async DB client | asyncpg |
-| Messaging | Apache Kafka (KRaft mode) |
-| Database | PostgreSQL 16 |
-| Containerisation | Docker, Docker Compose v2 |
-| CI / image registry | GitHub Actions, GHCR |
-| CD / GitOps | ArgoCD, Helm, Kind (local) |
-| Cluster automation | Ansible |
-| Development | VS Code Dev Containers |

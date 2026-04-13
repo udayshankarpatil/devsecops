@@ -1,5 +1,9 @@
 FROM python:3.12-slim AS base
 
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY pyproject.toml .
 # Stub package directory lets pip resolve and cache all dependencies as a
@@ -15,4 +19,4 @@ CMD ["python", "-m", "ingest.main"]
 
 FROM base AS dev
 RUN pip install --no-cache-dir -e . "watchdog[watchmedo]"
-CMD ["watchmedo", "auto-restart", "--directory=/app/src", "--pattern=*.py", "--recursive", "--", "python", "-m", "ingest.main"]
+CMD ["watchmedo", "auto-restart", "--directory=/app/src", "--pattern=*.py", "--recursive", "--debounce-interval=3", "--", "python", "-m", "ingest.main"]

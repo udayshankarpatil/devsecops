@@ -1,11 +1,12 @@
 import os
 from contextlib import asynccontextmanager
-
+from importlib.metadata import version
 import httpx
 from fastapi import FastAPI
-
 from .kafka.producer import KafkaProducer
 from .routers import tasks as tasks_router
+
+VERSION = version("api")
 
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "tasks")
@@ -24,7 +25,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Task Manager API",
-    version="0.1.0",
+    version=VERSION,
     lifespan=lifespan,
 )
 
@@ -33,4 +34,4 @@ app.include_router(tasks_router.router)
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "version": VERSION}

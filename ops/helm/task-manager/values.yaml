@@ -19,7 +19,7 @@ images:
 # Values match docker-compose env vars so the same image works in both environments.
 config:
   kafkaBootstrapServers: kafka:9092
-  kafkaTopic: tasks
+  kafkaTopic: tasks-kind
   kafkaGroupId: ingest-group
   # fetch is reachable by its k8s Service name within the same namespace
   fetchBaseUrl: http://fetch:8002

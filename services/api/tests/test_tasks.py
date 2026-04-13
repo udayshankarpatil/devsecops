@@ -32,7 +32,8 @@ def test_health(client):
     tc, _, _ = client
     resp = tc.get("/health")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok"}
+    assert resp.json()["status"] == "ok"
+    assert "version" in resp.json()
 
 
 def test_create_task(client):

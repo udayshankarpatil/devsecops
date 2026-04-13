@@ -1,163 +1,204 @@
+[← README](../README.md)
+
 # Developer Guide
 
-> For a one-screen command reference run `bash help.sh`.
+
+This project uses a dev container for all Python work, but some commands must run on the host machine. Throughout this guide:
+
+- **[host]** — your macOS terminal (iTerm, Terminal, etc.)
+- **[dev]** — a VS Code terminal, which runs inside the dev container
+
+> `docker compose` commands must always be run [host]. When run from a VS Code terminal, volume mount paths resolve incorrectly.
+
+For a one-screen command reference, run `bash dev.sh help`.
 
 ## Contents
 
-- [Two ways to run locally](#two-ways-to-run-locally)
-- [Mode 1 — docker-compose](#mode-1--docker-compose)
-- [Mode 2 — Kind (local Kubernetes)](#mode-2--kind-local-kubernetes)
-- [CI/CD Pipeline](ci-cd.md)
+1. [Prerequisites](#prerequisites)
+2. [One-time setup](#one-time-setup)
+3. [Two modes](#two-modes)
+4. [Day-to-day: development (Mode 1)](#day-to-day-development-mode-1)
+5. [GitOps validation (Mode 2 — Kind)](#gitops-validation-mode-2--kind)
 
-## Two ways to run locally
+---
 
-| | Mode 1: docker-compose | Mode 2: Kind (local Kubernetes) |
+## Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — must be installed and running
+
+- [VS Code](https://code.visualstudio.com/) with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+
+- macOS with [Homebrew](https://brew.sh) — all other tools are installed by `bash ops/setup.sh`
+
+---
+
+## Setup
+
+Performed once per machine, or once per fresh clone.
+
+**1. Clone the repository** and `cd` into it [host].
+
+**2. Install host tools** [host]:
+
+```bash
+bash dev.sh setup
+```
+
+This installs CLI tools (Kind, kubectl, Helm, yq, pre-commit) and activates a git hook that scans every commit for hardcoded secrets.
+
+**3. Open the repository** in VS Code. When prompted, click Reopen in Container (or run `Dev Containers: Reopen in Container` from `⇧⌘P`).
+
+VS Code builds the dev container image on the first open — this takes a few minutes. Subsequent opens reuse the cached image and are fast. All six containers start automatically on a shared Docker network — this is equivalent to running `bash dev.sh up`:
+
+| Container | Role |
+|---|---|
+| `devcontainer` | Your VS Code shell — where your terminal and editor run |
+| `api` | REST gateway · `http://localhost:8000` · live source mount + hot reload |
+| `fetch` | Read service · live source mount + hot reload |
+| `ingest` | Kafka consumer · live source mount + hot reload |
+| `postgres` | Database |
+| `kafka` | Message broker |
+
+**4. Verify the stack** is running [host OR dev]:
+
+```bash
+curl http://localhost:8000/health
+# → {"status":"ok"}
+```
+
+---
+
+## Two modes
+
+The application can run locally in two ways. They differ in *where* the application services run, but they always share the same Postgres and Kafka — both of which run via Docker Compose regardless of mode.
+
+```
+┌── Mode 1 (Docker Compose) ──────┐   ┌── Mode 2 (Kind cluster) ────────┐
+│  api (:8000) · fetch · ingest   │   │  api (:8080) · fetch · ingest   │
+└────────────────┬────────────────┘   └────────────────┬────────────────┘
+                 │                                     │
+                 └──────────────────┬──────────────────┘
+                                    ↓
+                   ┌── Shared (Docker Compose) ──────┐
+                   │        postgres · kafka         │
+                   └─────────────────────────────────┘
+```
+
+| | Mode 1 | Mode 2 |
 |---|---|---|
-| **Purpose** | Active development — hot reload, easy log tailing | Test the full GitOps/CD pipeline end-to-end |
-| **Services run in** | Docker containers (bridge network) | Kubernetes pods (inside a Kind cluster) |
-| **API reachable at** | `http://localhost:8000` | `http://localhost:8080` |
-| **Infra (postgres, kafka)** | docker-compose | docker-compose (shared — pods connect to the same containers) |
-| **Started with** | `docker compose up` | `ansible-playbook ops/ansible/kind-up.yml` |
+| **Purpose** | Active development | GitOps / CD pipeline validation |
+| **Application runs as** | Docker Compose containers | Kubernetes pods (Kind cluster) |
+| **API port** | `:8000` | `:8080` |
+| **Kafka topic** | `tasks` | `tasks-kind` |
+| **Start** | `bash dev.sh up` | `bash dev.sh up-kind` |
+| **Stop** | `bash dev.sh down` | `bash dev.sh down-kind` |
 
-See [port-mappings.md](port-mappings.md) for host port assignments and network topology.
+Both modes can run simultaneously and share the same data — a task written via `:8000` is visible at `:8080`.
 
----
-
-## Mode 1 — docker-compose
-
-Use this day-to-day during development. All three services run as Docker containers
-with live source mounts and hot reload.
-
-```bash
-# Start full stack
-docker compose up
-
-# Start infra only (run services locally via uvicorn/python directly)
-docker compose up postgres kafka
-
-# Rebuild after changing a Dockerfile or pyproject.toml
-docker compose build [api|ingest|fetch]
-
-# Shutdown
-docker compose down
-
-# Shutdown and wipe the database (destroys all data)
-docker compose down -v
-```
-
-**Run a service locally** (from within the dev container or with deps installed):
-
-```bash
-# api
-cd services/api
-SERVICE_C_BASE_URL=http://localhost:8002 KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
-  uvicorn api.main:app --reload --port 8000
-
-# fetch
-cd services/fetch
-DATABASE_URL=postgresql://tasksuser:taskspass@localhost:5432/tasksdb \
-  uvicorn fetch.main:app --reload --port 8002
-
-# ingest
-cd services/ingest
-DATABASE_URL=postgresql://tasksuser:taskspass@localhost:5432/tasksdb \
-KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
-  python -m ingest.main
-```
-
-**Tests** — discoverable via VS Code Test Explorer (beaker icon) or from a terminal:
-
-```bash
-pytest                          # all services from repo root
-cd services/api    && pytest    # single service
-cd services/ingest && pytest
-cd services/fetch  && pytest
-```
-
-**Schema changes** — the schema lives in `ops/infra/db/init.sql`. PostgreSQL only
-runs this script when the data volume is first created:
-
-```bash
-docker compose down -v && docker compose up   # Warning: destroys all data
-```
-
-See [api-reference.md](api-reference.md) for endpoint reference and curl examples.
-
-Verify with `docker compose ps` and `curl http://localhost:8000/health`.
+> **Mode 2 is not protected against Mode 1 shutdown.** Running `bash dev.sh down` while Mode 2 is active will cut the Kind pods off from postgres and kafka. If you need Mode 2 to remain functional, do not stop Mode 1 first.
+>
+> The reverse is protected: `bash dev.sh down-kind` checks whether Mode 1 is running before stopping postgres and kafka, and leaves them up if it is.
 
 ---
 
-## Mode 2 — Kind (local Kubernetes)
+## Development (Mode 1)
 
-Use this to validate the full GitOps pipeline — images are pulled from GHCR,
-ArgoCD manages the rollout, and the app runs as it would in a real cluster.
-Postgres and Kafka are shared with docker-compose. See [ci-cd.md](ci-cd.md) for
-how the pipeline works.
+### Making code changes
 
-### Prerequisites (host machine — not inside devcontainer)
+Hot reload is active for all three services. Save a `.py` file and the affected service restarts automatically. **No docker commands are needed for routine code changes.**
 
-- macOS with [Homebrew](https://brew.sh)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
+> **Note:** each save triggers a full service restart. If VS Code autosave is enabled, frequent saves — including mid-edit saves with syntax errors — will cause repeated restarts and unnecessary CPU load.
 
-Everything else (Ansible, Kind, kubectl, Helm, yq, Galaxy collections) is
-installed automatically by `ops/bootstrap.sh`.
-
-### One-time setup
-
-**1.** Start docker-compose infrastructure:
+### Running tests [dev]
 
 ```bash
-docker compose up postgres kafka
+bash dev.sh test                        # all services, from repo root
+bash dev.sh test services/api           # single service
+bash dev.sh test services/ingest
+bash dev.sh test services/fetch
 ```
 
-**2.** Verify `ops/argocd/application.yaml` — `repoURL` is set to your repository URL.
+Tests use mocks for all external dependencies (Kafka, PostgreSQL, HTTP). No running infrastructure is required.
 
-**3.** Verify `ops/helm/task-manager/values.yaml` — `image.owner` is set to your GitHub username.
+### Running security scans locally
 
-**4.** Initialise the gitops branch (only needed once — CI manages it after this):
+These mirror the CI security gates. Run before pushing — from both environments to cover all gates:
 
 ```bash
-git checkout --orphan gitops
-git rm -rf .
-mkdir -p ops/helm
-cp -r ops/helm/task-manager ops/helm/
-git add ops/helm/
-git commit -m "init: gitops branch"
-git push origin gitops
-git checkout dev
+bash dev.sh scan   # Hadolint, Gitleaks, Trivy  [host]
+bash dev.sh scan   # Bandit, pip-audit           [dev]
 ```
 
-**5.** Bootstrap tools and the cluster:
+The command auto-detects the environment and runs the appropriate scans.
+
+### Managing the stack [host]
 
 ```bash
-bash ops/bootstrap.sh                                    # prompts for GitHub username
-bash ops/bootstrap.sh -e image_owner=<github-username>  # non-interactive
+bash dev.sh up                                      # start stack — runs in foreground, logs stream to terminal; Ctrl+C stops all containers
+bash dev.sh up -d                                   # start stack detached — terminal returns immediately, containers keep running
+docker compose logs -f [api|fetch|ingest]           # tail service logs (useful when running detached)
+bash dev.sh build [api|fetch|ingest]                # rebuild after Dockerfile or pyproject.toml change
+bash dev.sh down                                    # stop all containers
+bash dev.sh down -v && bash dev.sh up               # reset database — destroys all data
 ```
 
-Both playbooks are idempotent — safe to re-run if anything fails midway.
+> VS Code's **Rebuild Container** only rebuilds the `devcontainer` image. The application services are unaffected. Closing VS Code or detaching from the dev container stops all containers — equivalent to `bash dev.sh down`.
 
-### Accessing the cluster
+### Schema changes
+
+The schema lives in `ops/infra/db/init.sql`. PostgreSQL only executes this file when the data volume is first created, so schema changes require a full reset:
+
+```bash
+# [host] — destroys all data
+bash dev.sh down -v && bash dev.sh up
+```
+
+---
+
+## GitOps validation (Mode 2)
+
+Use this mode to validate the full CI/CD pipeline end-to-end: images are pulled from GHCR, ArgoCD manages the rollout, and the application runs in Kubernetes exactly as it would in production. **This is not needed for day-to-day development.**
+
+> Mode 2 shares the same Postgres and Kafka instances as Mode 1. Both modes can run simultaneously but they share data — tasks created via `localhost:8000` are visible at `localhost:8080` and vice versa.
+
+### Setup [host]
+
+```bash
+bash dev.sh up-kind                              # prompts for GitHub username
+bash dev.sh up-kind -e image_owner=<username>   # non-interactive
+```
+
+This installs Kind, kubectl, Helm, yq, and Ansible Galaxy collections, starts postgres and kafka if they are not already running, then creates the Kind cluster and deploys ArgoCD. The command is idempotent — safe to re-run if anything fails midway, or to recreate the cluster after `down kind`.
+
+### Accessing services [host]
 
 | What | How |
 |---|---|
-| API | `http://localhost:8080` |
+| API | `http://localhost:8080` · Swagger at `http://localhost:8080/docs` |
 | ArgoCD UI | `kubectl port-forward svc/argocd-server -n argocd 8443:443` → `https://localhost:8443` |
 | ArgoCD initial password | `kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' \| base64 -d` |
 
-### Verifying a deployment
+### Verifying a deployment [host]
 
 ```bash
-kubectl get pods -n task-manager     # all three pods Running
-kubectl get application -n argocd    # Synced / Healthy
-curl http://localhost:8080/health    # {"status":"ok"}
+kubectl get pods -n task-manager    # all three pods Running
+kubectl get application -n argocd   # Synced / Healthy
+curl http://localhost:8080/health   # {"status":"ok"}
 ```
 
-Or run `bash ops/scripts/check-running.sh` for a full automated check.
+Or run `bash dev.sh check-kind` for a full automated check.
 
-### Tearing down
+### Tearing down [host]
 
 ```bash
-ansible-playbook ops/ansible/kind-down.yml
+bash dev.sh down-kind
 ```
 
-docker-compose services are left running. Run `docker compose down` separately if needed.
+This tears down the Kind cluster. If Mode 1 is not running, postgres and kafka are stopped as well. If Mode 1 is running, they are left up.
+
+To stop Mode 1 afterwards:
+
+```bash
+bash dev.sh down
+```
+

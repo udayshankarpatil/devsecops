@@ -13,7 +13,7 @@ ansible-playbook ops/ansible/kind-up.yml -e image_owner=<github-username>
 
 The playbook is idempotent — safe to run again after a partial failure. It will:
 1. Create the Kind cluster (if absent)
-2. Connect the Kind node to the docker-compose backend network
+2. Connect the Kind node to the Docker Compose backend network
 3. Create the task-manager namespace and DATABASE_URL secret
 4. Install ArgoCD via Helm
 5. Apply the ArgoCD Application manifest

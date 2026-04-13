@@ -1,5 +1,10 @@
 # CLAUDE.md
 
+## Working with Claude
+
+- **Git is managed by the developer.** Never stage, commit, push, or run any other git write operation unless explicitly asked. This includes `git add`, `git commit`, `git push`, `git restore`, and similar commands.
+- **Commit messages** should capture the essence of the change — not list the steps taken to implement it. Omit trivial details such as documentation updates.
+
 ## Project Overview
 
 Task Manager — a Python microservices mono-repo. Three services cooperate to provide async-write, sync-read task management over a REST API.
@@ -37,7 +42,7 @@ Infrastructure lives in `docker-compose.yml`. Schema is in `ops/infra/db/init.sq
 
 - Schema: `ops/infra/db/init.sql` (mounted into Postgres at first boot)
 - No ORM — raw `asyncpg` throughout
-- No migrations yet — schema changes require `docker compose down -v`
+- No migrations yet — schema changes require `bash dev.sh down -v`
 - `updated_at` is maintained automatically by a `BEFORE UPDATE` trigger in `init.sql`
 
 ## Write Response Convention
@@ -49,39 +54,50 @@ UUIDs are generated in `api` before publishing, so callers get an ID in the `202
 ## Quick Reference
 
 ```bash
-bash help.sh   # one-screen summary of all developer commands
+bash dev.sh help   # one-screen summary of all developer commands
 ```
 
 ## Local Deployment Modes
 
-There are two ways to run the application locally. They can coexist without port
-conflicts. See `docs/port-mappings.md` for full host port and network topology details.
+There are two ways to run the application locally. They can run in parallel without
+port conflicts, but they are **not isolated** — Mode 2 reuses the same Postgres and
+Kafka containers as Mode 1, so both modes share the same data. See `docs/port-mappings.md`
+for full host port and network topology details.
 
-| | Mode 1: docker-compose | Mode 2: Kind (local Kubernetes) |
+| | Mode 1: Docker Compose | Mode 2: Kind (local Kubernetes) |
 |---|---|---|
 | **Use for** | Active development, hot reload | Validating the GitOps/CD pipeline |
 | **API port** | `http://localhost:8000` | `http://localhost:8080` |
-| **Started with** | `docker compose up` | `ansible-playbook ops/ansible/kind-up.yml` |
+| **Started with** | `bash dev.sh up` | `bash dev.sh up-kind` |
 
-Postgres and Kafka always run in docker-compose. In Mode 2 the Kind node is
+Postgres and Kafka always run via Docker Compose. In Mode 2 the Kind node is
 connected to the same Docker network so pods reach them by service name.
 
 ## Key Commands
 
-### Mode 1 — docker-compose
+### Host setup (once per machine / once per clone)
 
 ```bash
-# Start everything
-docker compose up
+bash dev.sh setup
+```
+
+### Mode 1 — Docker Compose
+
+```bash
+# Start everything (foreground — logs stream to terminal, Ctrl+C stops all containers)
+bash dev.sh up
+
+# Start detached (terminal returns immediately; use 'docker compose logs -f' to follow logs)
+bash dev.sh up -d
 
 # Infra only (run services locally)
-docker compose up postgres kafka
+bash dev.sh up postgres kafka
 
 # Build images
-docker compose build [api|ingest|fetch]
+bash dev.sh build [api|ingest|fetch]
 
 # Reset database (destroys all data)
-docker compose down -v
+bash dev.sh down -v
 
 # Tail logs
 docker compose logs -f [api|ingest|fetch|kafka|postgres]
@@ -90,16 +106,17 @@ docker compose logs -f [api|ingest|fetch|kafka|postgres]
 ### Mode 2 — Kind
 
 ```bash
-# Bootstrap everything from scratch (host machine, not devcontainer)
-bash ops/bootstrap.sh                                   # prompts for GitHub username
-bash ops/bootstrap.sh -e image_owner=<github-username>  # non-interactive
+# Provision Kind cluster + ArgoCD — idempotent, re-run to recreate after down kind
+bash dev.sh up-kind                              # prompts for GitHub username
+bash dev.sh up-kind -e image_owner=<username>   # non-interactive
 
-# Tear down cluster
-ansible-playbook ops/ansible/kind-down.yml
+# Tear down cluster (stops postgres/kafka only if Mode 1 is not running)
+bash dev.sh down-kind
 
 # Verify setup / verify app is running
 bash ops/scripts/check-setup.sh
-bash ops/scripts/check-running.sh
+bash dev.sh check       # Mode 1: infra + services + API at :8000
+bash dev.sh check-kind  # Mode 2: infra + cluster + pods + API at :8080
 ```
 
 ### Tests
@@ -148,8 +165,29 @@ cd services/fetch && pytest
 
 The CI pipeline runs on GitHub Actions (`.github/workflows/ci.yml`):
 
-- **PRs targeting `dev`** — runs the test matrix (all three services); must pass before merge
-- **Merge into `dev`** — tests → build + push prod images to GHCR → commit updated image SHA to the `gitops` branch
+- **PRs targeting `dev`** — runs tests + all security gates in parallel; all must pass before merge
+- **Merge into `dev`** — tests + security → build (scan then push images to GHCR) → SBOM generation → commit updated image SHA to the `gitops` branch
+
+### Security gates (run on every PR and push)
+
+| Job | Tool | Checks |
+|---|---|---|
+| `sast` | Bandit | Python security anti-patterns |
+| `sca` | pip-audit | CVEs in Python dependencies |
+| `lint-dockerfiles` | Hadolint | Dockerfile violations |
+| `secrets-scan` | Gitleaks | Hardcoded secrets in git history |
+| `scan-configs` | Trivy (misconfig) | Helm / Compose misconfigurations |
+
+Images are scanned with Trivy **before** being pushed to GHCR — a vulnerable image never reaches the registry.
+
+### Key security config files
+
+| File | Purpose |
+|---|---|
+| `ops/config/hadolint.yaml` | Hadolint rules and ignored warnings |
+| `ops/config/.trivyignore` | Accepted CVEs / misconfig rules with justifications |
+| `.pre-commit-config.yaml` | Gitleaks pre-commit hook (run `pre-commit install` once per clone) |
+| `services/*/pyproject.toml` | `[tool.bandit]` config per service |
 
 Published image names:
 ```
@@ -159,7 +197,7 @@ ghcr.io/<owner>/task-manager/<service>:dev            # floating — latest merg
 
 `GITHUB_TOKEN` is injected automatically; no secrets need to be created.
 
-The CD layer uses ArgoCD watching the `gitops` branch + a Kind cluster for local k8s (Mode 2 above). Playbooks are idempotent — safe to re-run. See `docs/developer-guide.md` for full setup instructions.
+The CD layer uses ArgoCD watching the `gitops` branch + a Kind cluster for local k8s (Mode 2 above). Playbooks are idempotent — safe to re-run. See `docs/ci-cd.md` for the full pipeline reference and `docs/developer-guide.md` for one-time setup and day-to-day workflows.
 
 ## Known Limitations (future work)
 
