@@ -113,6 +113,9 @@ bash dev.sh up-kind -e image_owner=<username>   # non-interactive
 # Tear down cluster (stops postgres/kafka only if Mode 1 is not running)
 bash dev.sh down-kind
 
+# Open ArgoCD UI (prints credentials, opens browser, port-forwards https://localhost:8443)
+bash dev.sh argo
+
 # Verify setup / verify app is running
 bash ops/scripts/check-setup.sh
 bash dev.sh check       # Mode 1: infra + services + API at :8000
