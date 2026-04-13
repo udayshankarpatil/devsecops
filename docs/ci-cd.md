@@ -33,12 +33,51 @@ by CI and is never edited by hand.
 
 ## CI Pipeline
 
-The workflow lives in `.github/workflows/ci.yml`:
+The workflow lives in `.github/workflows/ci.yml`. GitHub Actions detects the file
+automatically — no registration step is needed. Any jobs declared in the workflow
+are picked up and executed by GitHub-hosted runners.
+
+### Trigger
+
+The workflow is triggered by two events, both configured in `ci.yml`:
+
+```yaml
+on:
+  push:
+    branches: [dev]        # fires after a PR merges into dev
+  pull_request:
+    branches: [dev]        # fires when a PR targeting dev is opened or updated
+```
 
 | Event | Jobs that run |
 |---|---|
 | PR opened / updated against `dev` | **test** + all **security** jobs (SAST, SCA, secrets, IaC, Dockerfile lint) |
 | PR merged into `dev` | all of the above → **build** (scan + push images to GHCR) → **SBOM** → **update-gitops** |
+
+### GitHub repo setup (owner only)
+
+The workflow file is sufficient for CI to run, but two GitHub settings must be
+configured once for the post-merge jobs to work:
+
+**1. Allow Actions to push packages**
+
+Settings → Actions → General → Workflow permissions → **Read and write permissions**
+
+This is required so `GITHUB_TOKEN` can push images to GHCR and commit to the
+`gitops` branch.
+
+**2. Protect the branch** (optional but recommended)
+
+Settings → Branches → Add rule for `dev`:
+- Enable **Require status checks to pass before merging**
+- Add checks: `Test api`, `Test fetch`, `Test ingest`, `SAST – api`,
+  `SAST – fetch`, `SAST – ingest`, `SCA – api`, `SCA – fetch`, `SCA – ingest`,
+  `Lint Dockerfiles`, `Secret Scan`, `Scan IaC configs`
+
+**3. Make GHCR images public** (after the first merge triggers a build)
+
+Navigate to `github.com/<you>?tab=packages`, open each package, set visibility to
+**Public**. This avoids needing pull credentials in Kubernetes.
 
 ### Security gates
 
@@ -97,25 +136,6 @@ Only use this for confirmed false positives — if the secret is real, rotate it
 2. All test and security jobs run automatically. All must be green before merging.
 3. On merge, images are scanned then pushed to GHCR tagged with the commit SHA and
    a floating `dev` tag. ArgoCD picks up the new tags automatically.
-
-### One-time repo setup (owner only)
-
-**1. Allow Actions to push packages**
-
-Settings → Actions → General → Workflow permissions → **Read and write permissions**
-
-**2. Protect the branch** (optional but recommended)
-
-Settings → Branches → Add rule for `dev`:
-- Enable **Require status checks to pass before merging**
-- Add checks: `Test api`, `Test fetch`, `Test ingest`, `SAST – api`,
-  `SAST – fetch`, `SAST – ingest`, `SCA – api`, `SCA – fetch`, `SCA – ingest`,
-  `Lint Dockerfiles`, `Secret Scan`, `Scan IaC configs`
-
-**3. Make GHCR images public** (after the first merge triggers a build)
-
-Navigate to `github.com/<you>?tab=packages`, open each package, set visibility to
-**Public**. This avoids needing pull credentials in Kubernetes.
 
 ### Published images
 

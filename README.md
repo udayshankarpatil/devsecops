@@ -41,8 +41,11 @@ flowchart LR
 
 ```bash
 bash dev.sh setup          # install host tools (once per machine / once per clone)
-# then open project directory in VS Code and click "Reopen in Container"
-# VSCode starts all services automatically via Docker Compose
+```
+
+Then open project directory in VS Code and click "Reopen in Container".  VSCode starts all services automatically via Docker Compose
+
+```
 bash dev.sh check          # verify the stack is up and the API is responding
 bash dev.sh -h             # list all available dev.sh commands
 ```
@@ -53,7 +56,7 @@ Once the stack is up, the API is available at `http://localhost:8000`. Open `htt
 
 **Two ways to run locally** — `bash dev.sh up` (port 8000) is for day-to-day development. `bash dev.sh up-kind` (port 8080) provisions a local Kubernetes cluster and is only needed when validating the CI/CD pipeline end-to-end; most developers will never need it.
 
-**Write behaviour** — write operations (`POST`, `PUT`, `DELETE`) return immediately with a `task_id` before the data has been saved. Writes are queued through Kafka and persisted asynchronously, so a newly created or updated task may not appear in read responses for a brief moment.
+**API write behaviour** — write operations (`POST`, `PUT`, `DELETE`) return immediately with a `task_id` before the data has been saved. Writes are queued through Kafka and persisted asynchronously, so a newly created or updated task may not appear in read responses for a brief moment.
 
 Full details in the docs:
 
