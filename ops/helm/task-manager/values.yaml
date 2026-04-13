@@ -8,11 +8,11 @@ image:
 # on every merge to `dev`. Do not edit by hand on the gitops branch.
 images:
   api:
-    tag: 3e57750a0224eae31c8a2d2af5582edbdc66f636
+    tag: 926bdf2c8f91f45fc13019605db68c33bb5cc092
   fetch:
-    tag: 3e57750a0224eae31c8a2d2af5582edbdc66f636
+    tag: 926bdf2c8f91f45fc13019605db68c33bb5cc092
   ingest:
-    tag: 3e57750a0224eae31c8a2d2af5582edbdc66f636
+    tag: 926bdf2c8f91f45fc13019605db68c33bb5cc092
 # Non-sensitive runtime configuration, injected via ConfigMap.
 # Values match docker-compose env vars so the same image works in both environments.
 config:
