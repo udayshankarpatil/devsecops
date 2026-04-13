@@ -16,9 +16,20 @@ spec:
       labels:
         app: api
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: api
           image: {{ include "task-manager.imageBase" . }}/api:{{ .Values.images.api.tag }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: {{ .Values.api.port }}
           # Kafka and fetch URL come from ConfigMap; no DB access needed

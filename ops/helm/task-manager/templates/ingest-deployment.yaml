@@ -16,9 +16,23 @@ spec:
       labels:
         app: ingest
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: ingest
           image: {{ include "task-manager.imageBase" . }}/ingest:{{ .Values.images.ingest.tag }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           # Kafka settings from ConfigMap; DATABASE_URL from Secret
           envFrom:
             - configMapRef:
@@ -38,3 +52,6 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 15
             failureThreshold: 3
+      volumes:
+        - name: tmp
+          emptyDir: {}

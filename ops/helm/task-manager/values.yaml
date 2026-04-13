@@ -8,16 +8,16 @@ image:
 # on every merge to `dev`. Do not edit by hand on the gitops branch.
 images:
   api:
-    tag: cc60b056ba092bad0f893357c802a8f3c72e330e
+    tag: 3e57750a0224eae31c8a2d2af5582edbdc66f636
   fetch:
-    tag: cc60b056ba092bad0f893357c802a8f3c72e330e
+    tag: 3e57750a0224eae31c8a2d2af5582edbdc66f636
   ingest:
-    tag: cc60b056ba092bad0f893357c802a8f3c72e330e
+    tag: 3e57750a0224eae31c8a2d2af5582edbdc66f636
 # Non-sensitive runtime configuration, injected via ConfigMap.
 # Values match docker-compose env vars so the same image works in both environments.
 config:
   kafkaBootstrapServers: kafka:9092
-  kafkaTopic: tasks
+  kafkaTopic: tasks-kind
   kafkaGroupId: ingest-group
   # fetch is reachable by its k8s Service name within the same namespace
   fetchBaseUrl: http://fetch:8002

@@ -16,9 +16,20 @@ spec:
       labels:
         app: fetch
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: fetch
           image: {{ include "task-manager.imageBase" . }}/fetch:{{ .Values.images.fetch.tag }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: {{ .Values.fetch.port }}
           # DATABASE_URL comes from Secret; no Kafka access needed
