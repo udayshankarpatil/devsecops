@@ -7,9 +7,9 @@ name: CI
 # The `packages: write` permission below is all that's required for GHCR access.
 on:
   push:
-    branches: [dev]
+    branches: [dev, cicd-temp]
   pull_request:
-    branches: [dev]
+    branches: [dev, cicd-temp]
 
 env:
   REGISTRY: ghcr.io
