@@ -35,6 +35,14 @@ flowchart LR
 
 > **Write behaviour:** mutation endpoints (`POST`, `PUT`, `DELETE`) return `202 Accepted` immediately with a `task_id`. The database write happens asynchronously via Kafka, so a newly created task may not appear in read responses for a brief moment.
 
+## CI/CD
+
+The project ships with a GitHub Actions pipeline that follows a **DevSecOps** approach. Security gates run in parallel with tests on every pull request and merge to `dev`, rather than as a separate phase. 
+
+Each run executes a test suite alongside static analysis (Bandit), dependency vulnerability scanning (pip-audit), Dockerfile linting (Hadolint), secret scanning (Gitleaks), and IaC misconfiguration scanning (Trivy). 
+
+Docker images are scanned for CVEs before being pushed to GHCR.  A vulnerable image never reaches the registry. On merge, image tags are pinned in the `gitops` branch and ArgoCD rolls out the updated pods to the Kind cluster automatically.
+
 ## Quick start
 
 **Getting started** — after cloning the repo:
@@ -68,3 +76,7 @@ Full details in the docs:
 | [Tech Stack](docs/tech-stack.md) | Languages, frameworks, and tooling |
 | [Project Structure](docs/project-structure.md) | Repository layout |
 | [Port Mappings](docs/port-mappings.md) | Host ports and network topology |
+
+## Feature wishlist
+
+- **Dependabot for GitHub Actions** — automate action version updates via weekly Dependabot PRs instead of manual edits to `ci.yml`.

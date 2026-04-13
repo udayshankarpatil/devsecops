@@ -38,9 +38,9 @@ jobs:
           echo "Source branch (head_ref, PRs only) : ${{ github.head_ref }}"
           echo "Target branch (base_ref, PRs only) : ${{ github.base_ref }}"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -65,9 +65,9 @@ jobs:
         service: [api, fetch, ingest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -94,9 +94,9 @@ jobs:
         service: [api, fetch, ingest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -117,22 +117,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Lint services/api/Dockerfile
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: services/api/Dockerfile
           config: ops/config/hadolint.yaml
 
       - name: Lint services/fetch/Dockerfile
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: services/fetch/Dockerfile
           config: ops/config/hadolint.yaml
 
       - name: Lint services/ingest/Dockerfile
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: services/ingest/Dockerfile
           config: ops/config/hadolint.yaml
@@ -144,14 +144,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # Full history lets Gitleaks scan every commit in the PR, not just
           # the tip — a secret committed and then "deleted" is still a leak.
           fetch-depth: 0
 
       - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -162,10 +162,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Run Trivy misconfiguration scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           scan-type: config
           # Scan Helm charts, docker-compose, and k8s manifests
@@ -176,7 +176,7 @@ jobs:
           trivyignores: ops/config/.trivyignore
 
       - name: Run Trivy misconfiguration scan (docker-compose)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           scan-type: config
           scan-ref: docker-compose.yml
@@ -212,23 +212,23 @@ jobs:
           echo "Image tags : ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ github.sha }}"
           echo "           : ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:dev"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # Step 1: Build and load the image locally for scanning.
       # The layer cache is written to the GHA cache here and reused in Step 3,
       # so the push step is essentially free (no rebuild).
       - name: Build image (local, for scanning)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: services/${{ matrix.service }}
           target: prod
@@ -242,7 +242,7 @@ jobs:
       # exit-code 1: fail the job — and therefore block the push — if any
       # CRITICAL or HIGH fixed CVE is found.
       - name: Scan image for vulnerabilities
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: scan/${{ matrix.service }}:${{ github.sha }}
           format: table
@@ -254,7 +254,7 @@ jobs:
       # Step 3: Push to GHCR only if the scan passed.
       # Reuses the GHA layer cache from Step 1 — no full rebuild.
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: services/${{ matrix.service }}
           target: prod
@@ -268,7 +268,7 @@ jobs:
       # Step 4: Generate SBOM for the pushed image and upload as a CI artifact.
       # Non-blocking: SBOM failure does not stop the deployment.
       - name: Generate SBOM
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@v0.24.0
         with:
           image: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ github.sha }}
           artifact-name: sbom-${{ matrix.service }}-${{ github.sha }}.spdx
@@ -292,7 +292,7 @@ jobs:
           echo "SHA        : ${{ github.sha }}"
           echo "Pinning gitops branch image tags to ${{ github.sha }}"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
