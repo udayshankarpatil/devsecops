@@ -9,6 +9,11 @@
 
 set -uo pipefail
 
+if [ -f /.dockerenv ]; then
+    echo "Error: check-setup.sh must be run from the host machine, not the dev container." >&2
+    exit 1
+fi
+
 cd "$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 
 PASS=0

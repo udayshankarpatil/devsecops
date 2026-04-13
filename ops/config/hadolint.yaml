@@ -1,0 +1,14 @@
+# Hadolint — Dockerfile linter configuration.
+# Rule reference: https://github.com/hadolint/hadolint/wiki/DL-Rules
+#
+# failure-threshold: only rules at this severity or above fail the build.
+# Setting it to "error" means warnings are surfaced but never block a merge.
+# Tighten to "warning" once the Dockerfiles are fully clean.
+failure-threshold: error
+
+# DL3008: apt-get packages should be pinned to a specific version.
+# Ignored because we install only `curl` (a system utility), and the base
+# image itself (python:3.12-slim) is already version-pinned. The risk of
+# an unexpected curl upgrade is low and acceptable here.
+ignore:
+  - DL3008

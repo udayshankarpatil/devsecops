@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
-# bootstrap.sh — one-command developer environment setup.
+# bootstrap.sh — provision the local Kind cluster for GitOps validation (Mode 2).
 #
 # Installs Ansible if missing, then runs:
-#   1. ops/ansible/dev-setup.yml  — CLI tools + Galaxy collections (one-time)
-#   2. ops/ansible/kind-up.yml    — Kind cluster + ArgoCD (idempotent)
+#   ops/ansible/kind-up.yml  — Kind cluster + ArgoCD (idempotent — re-run to recreate)
+#
+# Prerequisites:
+#   - macOS with Homebrew (https://brew.sh) and Docker Desktop running
+#   - Host tools installed: bash ops/setup.sh
 #
 # Usage (run from repo root):
 #   bash ops/bootstrap.sh                                    # prompts for GitHub username
 #   bash ops/bootstrap.sh -e image_owner=<github-username>  # non-interactive
-#
-# Prerequisites: macOS with Homebrew (https://brew.sh) and Docker Desktop running.
 
 set -euo pipefail
+
+if [ -f /.dockerenv ]; then
+    echo "Error: bootstrap.sh must be run from the host machine, not the dev container." >&2
+    exit 1
+fi
 
 # Resolve repo root so the script works when called from any directory.
 # The script lives in ops/, so go one level up to reach the repo root.
@@ -27,13 +33,7 @@ fi
 
 echo "==> Ansible: $(ansible --version | head -1)"
 
-# ── Step 2: Install dev tools + Galaxy collections ────────────────────────────
-
-echo ""
-echo "==> Running dev-setup playbook..."
-ansible-playbook ops/ansible/dev-setup.yml
-
-# ── Step 3: Bootstrap the Kind cluster ────────────────────────────────────────
+# ── Step 2: Bootstrap the Kind cluster ────────────────────────────────────────
 
 # If the caller didn't supply image_owner on the command line, prompt for it.
 if [[ "$*" != *"image_owner"* ]]; then
