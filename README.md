@@ -79,4 +79,16 @@ Full details in the docs:
 
 ## Feature wishlist
 
+**CI / supply chain**
 - **Dependabot for GitHub Actions** — automate action version updates via weekly Dependabot PRs instead of manual edits to `ci.yml`.
+- **`shellcheck` in CI** — static analysis for the bash scripts in `ops/` and `dev.sh`; fits naturally as an additional security gate job.
+- **Cosign image signing** — sign images after push using keyless OIDC signing so the cluster can verify every image was built by CI and not tampered with.
+
+**Kubernetes / runtime**
+- **Network policies** — `NetworkPolicy` objects to restrict pod-to-pod traffic to only what the architecture requires; currently all pods can reach each other freely.
+- **Kyverno admission controller** — policy-as-code enforced at the Kubernetes API server, blocking deployments that violate rules (e.g. containers running as root, missing resource limits, images not from the approved registry).
+- **Falco** — runtime threat detection via syscall monitoring; alerts on anomalous behaviour such as a shell spawned inside a pod or unexpected outbound connections.
+
+**Testing**
+- **`helm unittest`** — unit tests for the Helm chart to assert templates render correctly across different `values.yaml` inputs, without deploying a cluster.
+- **DAST** — dynamic application security testing (OWASP ZAP or Nuclei) run against a live deployed instance to catch injection, auth bypass, and misconfigured headers that static analysis cannot see.
